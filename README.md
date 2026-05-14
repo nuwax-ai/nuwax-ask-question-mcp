@@ -10,6 +10,14 @@ The ask/question path is intentionally separate from ACP permission approval:
 - Web/Mobile responds to the backend, and the backend calls this MCP sidecar's `POST /respond`.
 - The MCP tool returns the final tool result to the agent.
 
+ACP permission approval uses a different transport contract and should not be routed
+through this MCP sidecar:
+
+- NuwaClaw/RCoder emits `messageType = "acpRequestPermission"` with `subType = "request_permission"`.
+- The event data carries `request_permission_request` and optional `save_rule`.
+- Web/Mobile approval responses go to `POST /api/computer/notify-resolved` as `permission_resolve_request`.
+- `nuwax_ask_user` and `nuwaclaw_ask_user` remain for explicit agent questions that need a form-style user answer.
+
 ## Install
 
 ```bash
