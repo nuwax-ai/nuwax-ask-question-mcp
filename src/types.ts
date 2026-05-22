@@ -3,6 +3,15 @@ import { z } from "zod";
 export const ASK_SCHEMA_VERSION = "nuwaclaw.mcp_ask.v1";
 export const INTERACTION_UI_SCHEMA_VERSION = "nuwaclaw.interaction.v1";
 
+/** MCP 主工具名，与 ACP ToolCall.rawInput.toolName 一致。 */
+export const MCP_ASK_TOOL_NAME = "nuwax_ask_question" as const;
+
+/** 历史 rawInput.toolName，解析时仍接受以便旧客户端过渡。 */
+export const LEGACY_MCP_ASK_TOOL_NAMES = [
+  "nuwax_ask_user",
+  "nuwaclaw_ask_user",
+] as const;
+
 export const InteractionUiSchema = z
   .object({
     version: z.literal(INTERACTION_UI_SCHEMA_VERSION),
@@ -37,7 +46,7 @@ export const InteractionUiSchema = z
 
 export const McpAskUserToolInputSchema = z
   .object({
-    toolName: z.enum(["nuwaclaw_ask_user", "nuwax_ask_user"]),
+    toolName: z.enum([MCP_ASK_TOOL_NAME, ...LEGACY_MCP_ASK_TOOL_NAMES]),
     schemaVersion: z.literal(ASK_SCHEMA_VERSION),
     requestId: z.string().min(1),
     revision: z.number().int().positive(),
@@ -53,7 +62,10 @@ export const McpAskUserToolInputSchema = z
 
 export const McpAskUserToolResultSchema = z
   .object({
-    status: z.enum(["answered", "cancelled", "skipped", "expired"]),
+    status: z.enum(["pending", "answered", "cancelled", "skipped", "expired"]),
+    requestId: z.string().min(1).optional(),
+    revision: z.number().int().positive().optional(),
+    message: z.string().optional(),
     formData: z.record(z.unknown()).optional(),
     answeredBy: z
       .object({

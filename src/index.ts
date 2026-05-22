@@ -4,19 +4,19 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { startHttpServer } from "./httpServer.js";
-import { PendingAskStore } from "./pendingStore.js";
 import {
   ASK_SCHEMA_VERSION,
   INTERACTION_UI_SCHEMA_VERSION,
+  MCP_ASK_TOOL_NAME,
   McpAskUserToolInputSchema,
   type McpAskUserToolInput,
 } from "./types.js";
 
-const DEFAULT_PORT = 63334;
-
-const rawInputShape = {
-  toolName: z.enum(["nuwaclaw_ask_user", "nuwax_ask_user"]),
+/**
+ * ask 工具业务入参（不含 toolName）。
+ * MCP 注册名为 nuwax_ask_question；写入 ACP rawInput 时固定 toolName。
+ */
+const askUserPayloadShape = {
   schemaVersion: z.literal(ASK_SCHEMA_VERSION),
   requestId: z.string().min(1),
   revision: z.number().int().positive(),
@@ -59,7 +59,12 @@ const rawInputShape = {
   priority: z.enum(["normal", "high"]).optional(),
 };
 
-const store = new PendingAskStore();
+/** 兼容入参：调用方在 rawInput 里显式带 toolName（nuwaclaw_ask_user）。 */
+const legacyRawInputShape = {
+  toolName: z.enum(["nuwaclaw_ask_user", "nuwax_ask_user"]),
+  ...askUserPayloadShape,
+};
+
 const server = new McpServer(
   {
     name: "nuwax-ask-question-mcp",
@@ -67,18 +72,24 @@ const server = new McpServer(
   },
   {
     instructions:
-      "Use nuwax_ask_user when you need the human user to answer an interactive question. The UI schema is carried in the tool input so ACP clients can render it from tool_call rawInput.",
+      "Use nuwax_ask_question when you need the human user to answer an interactive question. The UI schema is carried in the tool input so ACP clients can render it from tool_call rawInput.",
   },
 );
 
 async function handleAsk(input: McpAskUserToolInput): Promise<CallToolResult> {
   const parsed = McpAskUserToolInputSchema.parse(input);
-  const result = await store.waitForAnswer(parsed);
+  const result = {
+    status: "pending" as const,
+    requestId: parsed.requestId,
+    revision: parsed.revision,
+    message:
+      "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message.",
+  };
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(result),
+        text: result.message,
       },
     ],
     structuredContent: result,
@@ -86,12 +97,12 @@ async function handleAsk(input: McpAskUserToolInput): Promise<CallToolResult> {
 }
 
 server.registerTool(
-  "nuwax_ask_user",
+  MCP_ASK_TOOL_NAME,
   {
-    title: "Ask Nuwax User",
+    title: "Ask Nuwax User (Question)",
     description:
-      "Ask the user an interactive question. The caller must provide a nuwaclaw.interaction.v1 UI schema in rawInput.ui.",
-    inputSchema: rawInputShape,
+      "Ask the user an interactive question. Provide a nuwaclaw.interaction.v1 UI schema in ui. Codex exposes this as mcp__ask_question__nuwax_ask_question when the MCP server key is ask-question.",
+    inputSchema: askUserPayloadShape,
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -101,17 +112,17 @@ server.registerTool(
   async (input): Promise<CallToolResult> =>
     handleAsk({
       ...input,
-      toolName: "nuwax_ask_user",
+      toolName: MCP_ASK_TOOL_NAME,
     } as McpAskUserToolInput),
 );
 
 server.registerTool(
   "nuwaclaw_ask_user",
   {
-    title: "Ask Nuwaclaw User",
+    title: "Ask Nuwaclaw User (legacy)",
     description:
-      "Compatibility alias for nuwax_ask_user. Use the same input and response contract.",
-    inputSchema: rawInputShape,
+      "Legacy compatibility tool. Same contract as nuwax_ask_question; rawInput.toolName must be nuwaclaw_ask_user.",
+    inputSchema: legacyRawInputShape,
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -126,24 +137,15 @@ server.registerTool(
 );
 
 async function main() {
-  const port = Number(process.env.NUWAX_ASK_MCP_PORT ?? DEFAULT_PORT);
-  const secret = process.env.NUWAX_ASK_MCP_SECRET;
-  await startHttpServer({ store, port, secret });
-  console.error(
-    `nuwax-ask-question-mcp respond server listening on http://127.0.0.1:${port}`,
-  );
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
 
 process.on("SIGINT", () => {
-  store.cancelAll();
   process.exit(130);
 });
 
 process.on("SIGTERM", () => {
-  store.cancelAll();
   process.exit(143);
 });
 

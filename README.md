@@ -4,11 +4,11 @@ MCP server for Nuwax/NuwaClaw ask/question interactions.
 
 The ask/question path is intentionally separate from ACP permission approval:
 
-- The agent calls an MCP tool: `nuwax_ask_user` or `nuwaclaw_ask_user`.
+- The agent calls the MCP tool `nuwax_ask_question` (Codex: `mcp__ask_question__nuwax_ask_question`). Legacy: `nuwaclaw_ask_user`.
 - The MCP tool input carries `rawInput.schemaVersion = "nuwaclaw.mcp_ask.v1"` and `rawInput.ui.version = "nuwaclaw.interaction.v1"`.
 - ACP clients surface the normal `tool_call` and `tool_call_update` progress events.
-- Web/Mobile responds to the backend, and the backend calls this MCP sidecar's `POST /respond`.
-- The MCP tool returns the final tool result to the agent.
+- The MCP tool returns immediately with `status = "pending"` and tells the agent to stop the current turn.
+- Web/Mobile submits the completed form as a normal chat message, which starts the next agent turn.
 
 ACP permission approval uses a different transport contract and should not be routed
 through this MCP sidecar:
@@ -16,7 +16,8 @@ through this MCP sidecar:
 - NuwaClaw/RCoder emits `messageType = "acpRequestPermission"` with `subType = "request_permission"`.
 - The event data carries `request_permission_request` and optional `save_rule`.
 - Web/Mobile approval responses go to `POST /api/computer/notify-resolved` as `permission_resolve_request`.
-- `nuwax_ask_user` and `nuwaclaw_ask_user` remain for explicit agent questions that need a form-style user answer.
+- `nuwax_ask_question` is the primary tool; Codex exposes it as `mcp__ask_question__nuwax_ask_question` when the MCP server key is `ask-question`.
+- `nuwaclaw_ask_user` remains as a legacy compatibility entry with the same response contract.
 
 ## Install
 
@@ -28,28 +29,16 @@ npm run build
 ## Run
 
 ```bash
-NUWAX_ASK_MCP_PORT=63334 \
-NUWAX_ASK_MCP_SECRET=change-me \
 npm start
 ```
 
-MCP stdio runs on stdin/stdout. The local response sidecar listens on:
-
-```text
-POST http://127.0.0.1:63334/respond
-```
-
-If `NUWAX_ASK_MCP_SECRET` is set, callers must send:
-
-```text
-X-Nuwax-Internal-Secret: <secret>
-```
+MCP stdio runs on stdin/stdout. No response sidecar is required.
 
 ## MCP Tool Input
 
 ```json
 {
-  "toolName": "nuwax_ask_user",
+  "toolName": "nuwax_ask_question",
   "schemaVersion": "nuwaclaw.mcp_ask.v1",
   "requestId": "ask_123",
   "revision": 1,
@@ -77,66 +66,15 @@ X-Nuwax-Internal-Secret: <secret>
 }
 ```
 
-## Response Callback
-
-```http
-POST /respond
-Content-Type: application/json
-X-Nuwax-Internal-Secret: change-me
-```
-
-Submit:
-
-```json
-{
-  "interventionId": "ask_123",
-  "toolCallId": "tool_call_123",
-  "revision": 1,
-  "source": "mcp_ask",
-  "protocol": "mcp",
-  "action": "submit",
-  "formData": {
-    "choice": "a"
-  },
-  "answeredBy": {
-    "kind": "web",
-    "userId": "u_123"
-  },
-  "answeredAt": 1760000000000
-}
-```
-
-Cancel:
-
-```json
-{
-  "interventionId": "ask_123",
-  "revision": 1,
-  "source": "mcp_ask",
-  "protocol": "mcp",
-  "action": "cancel"
-}
-```
-
 ## Tool Result
 
 ```json
 {
-  "status": "answered",
-  "formData": {
-    "choice": "a"
-  },
-  "answeredBy": {
-    "kind": "web",
-    "userId": "u_123"
-  },
-  "answeredAt": 1760000000000
+  "status": "pending",
+  "requestId": "ask_123",
+  "revision": 1,
+  "message": "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message."
 }
 ```
 
-Terminal statuses:
-
-- `answered`
-- `cancelled`
-- `skipped`
-- `expired`
+The form answer is not returned through MCP. It is formatted by the client and sent as the next user chat message.
