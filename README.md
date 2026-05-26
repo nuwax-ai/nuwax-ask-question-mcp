@@ -7,11 +7,11 @@ The ask/question path is intentionally separate from ACP permission approval:
 - The agent calls the MCP tool `nuwax_ask_question` (Codex: `mcp__ask_question__nuwax_ask_question`). Legacy: `nuwaclaw_ask_user`.
 - The MCP tool input carries `rawInput.schemaVersion = "nuwaclaw.mcp_ask.v1"` and `rawInput.ui.version = "nuwaclaw.interaction.v1"`.
 - ACP clients surface the normal `tool_call` and `tool_call_update` progress events.
-- The MCP tool returns immediately with `status = "pending"` and tells the agent to stop the current turn.
+- The MCP tool returns immediately and tells the agent to stop the current turn.
 - Web/Mobile submits the completed form as a normal chat message, which starts the next agent turn.
 
 ACP permission approval uses a different transport contract and should not be routed
-through this MCP sidecar:
+through this MCP stdio tool:
 
 - NuwaClaw/RCoder emits `messageType = "acpRequestPermission"` with `subType = "request_permission"`.
 - The event data carries `request_permission_request` and optional `save_rule`.
@@ -32,7 +32,7 @@ npm run build
 npm start
 ```
 
-MCP stdio runs on stdin/stdout. No response sidecar is required.
+MCP stdio runs on stdin/stdout. No HTTP service, response sidecar, or MCP-side pending store is required.
 
 ## MCP Tool Input
 
@@ -77,4 +77,15 @@ MCP stdio runs on stdin/stdout. No response sidecar is required.
 }
 ```
 
+`status = "pending"` is only the tool-result signal shown to the agent; this package does not keep a pending request or wait for a callback.
+
 The form answer is not returned through MCP. It is formatted by the client and sent as the next user chat message.
+
+The client should format that chat message with user-facing labels instead of raw JSON, for example:
+
+```text
+我已填写「请选择继续方式」，表单内容如下：
+
+选项：先跑测试
+补充说明：先跑关键链路
+```
