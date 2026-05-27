@@ -13,9 +13,9 @@ The ask/question path is intentionally separate from ACP permission approval:
 ACP permission approval uses a different transport contract and should not be routed
 through this MCP stdio tool:
 
-- NuwaClaw/RCoder emits `messageType = "acpRequestPermission"` with `subType = "request_permission"`.
+- NuwaClaw/RCoder emits `message_type = "acpRequestPermission"` with `sub_type = "request_permission"`.
 - The event data carries `request_permission_request` and optional `save_rule`.
-- Web/Mobile approval responses go to `POST /api/computer/notify-resolved` as `permission_resolve_request`.
+- Web/Mobile approval responses go to Backend `POST /api/agent-interventions/{interventionId}/respond` as `permission_resolve_request`; Backend forwards the body to NuwaClaw `/computer/notify-resolved`.
 - `nuwax_ask_question` is the primary tool; Codex exposes it as `mcp__ask_question__nuwax_ask_question` when the MCP server key is `ask-question`.
 - `nuwaclaw_ask_user` remains as a legacy compatibility entry with the same response contract.
 
@@ -81,11 +81,44 @@ MCP stdio runs on stdin/stdout. No HTTP service, response sidecar, or MCP-side p
 
 The form answer is not returned through MCP. It is formatted by the client and sent as the next user chat message.
 
-The client should format that chat message with user-facing labels instead of raw JSON, for example:
+## Client Resume Message Format
+
+The client should format that chat message with user-facing labels instead of raw JSON. This keeps the answer readable for both the user and the next agent turn.
+
+Recommended format:
+
+```text
+我已填写「{title}」，表单内容如下：
+
+{field label}：{display value}
+{field label}：{display value}
+```
+
+Formatting rules:
+
+- `{title}` uses the MCP input `title`, falling back to `ui.title`.
+- Field labels use JSON Schema `properties[field].title`; if absent, use the field key.
+- Enum values should be displayed with `uiSchema[field]["ui:options"].enumNames` when provided.
+- Array values should be joined with `、`.
+- Boolean values should be rendered as `是` / `否`.
+- Empty values should be rendered as `未填写`.
+- Unknown form fields should still be included as readable `key：value` lines.
+- Do not wrap the answer in a JSON code block and do not send raw JSON unless the user explicitly typed JSON.
+
+Example:
 
 ```text
 我已填写「请选择继续方式」，表单内容如下：
 
 选项：先跑测试
 补充说明：先跑关键链路
+检查项：代码检查、单元测试
+```
+
+Cancel, skip, and timeout should also be normal chat messages:
+
+```text
+我取消了「请选择继续方式」。
+我跳过了「请选择继续方式」。
+「请选择继续方式」已超时，没有收到表单答案。
 ```

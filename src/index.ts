@@ -76,7 +76,7 @@ const server = new McpServer(
   },
 );
 
-async function handleAsk(input: McpAskUserToolInput): Promise<CallToolResult> {
+export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolResult> {
   const parsed = McpAskUserToolInputSchema.parse(input);
   const result = {
     status: "pending" as const,

@@ -1,0 +1,103 @@
+import { describe, expect, it } from "vitest";
+import { handleAsk } from "./index.js";
+import {
+  MCP_ASK_TOOL_NAME,
+  LEGACY_MCP_ASK_TOOL_NAMES,
+} from "./types.js";
+
+/** 构造合法输入的工厂函数 */
+function validInput(overrides = {}) {
+  return {
+    toolName: MCP_ASK_TOOL_NAME as string,
+    schemaVersion: "nuwaclaw.mcp_ask.v1",
+    requestId: "req-001",
+    revision: 1,
+    sessionId: "sess-001",
+    title: "Test Question",
+    ui: {
+      version: "nuwaclaw.interaction.v1",
+      presentation: "inline" as const,
+      title: "Question Title",
+      schema: { type: "object", properties: {} },
+    },
+    ...overrides,
+  };
+}
+
+describe("handleAsk", () => {
+  it("合法输入返回 status pending + requestId + revision + message", async () => {
+    const input = validInput({ requestId: "req-123", revision: 3 });
+    const result = await handleAsk(input as any);
+
+    expect(result.structuredContent).toBeDefined();
+    const sc = result.structuredContent as any;
+    expect(sc.status).toBe("pending");
+    expect(sc.requestId).toBe("req-123");
+    expect(sc.revision).toBe(3);
+    expect(typeof sc.message).toBe("string");
+    expect(sc.message.length).toBeGreaterThan(0);
+  });
+
+  it("structuredContent 包含正确字段", async () => {
+    const input = validInput();
+    const result = await handleAsk(input as any);
+    const sc = result.structuredContent as any;
+
+    expect(sc).toHaveProperty("status");
+    expect(sc).toHaveProperty("requestId");
+    expect(sc).toHaveProperty("revision");
+    expect(sc).toHaveProperty("message");
+    expect(Object.keys(sc)).toHaveLength(4);
+  });
+
+  it("content[0].text 包含固定提示文本", async () => {
+    const input = validInput();
+    const result = await handleAsk(input as any);
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].type).toBe("text");
+    expect(result.content[0].text).toContain("presented to the user");
+    expect(result.content[0].text).toContain("Stop this turn now");
+  });
+
+  it("content[0].text 与 structuredContent.message 一致", async () => {
+    const input = validInput();
+    const result = await handleAsk(input as any);
+
+    expect(result.content[0].text).toBe(
+      (result.structuredContent as any).message,
+    );
+  });
+
+  it("缺少必填字段时抛出 ZodError", async () => {
+    const input = validInput();
+    delete (input as any).requestId;
+
+    await expect(handleAsk(input as any)).rejects.toThrow();
+  });
+
+  it("缺少 ui 时抛出 ZodError", async () => {
+    const input = validInput();
+    delete (input as any).ui;
+
+    await expect(handleAsk(input as any)).rejects.toThrow();
+  });
+
+  it("无效 schemaVersion 时抛出 ZodError", async () => {
+    const input = validInput({ schemaVersion: "wrong" });
+
+    await expect(handleAsk(input as any)).rejects.toThrow();
+  });
+
+  for (const legacyName of LEGACY_MCP_ASK_TOOL_NAMES) {
+    it(`legacy toolName (${legacyName}) 正常工作`, async () => {
+      const input = validInput({ toolName: legacyName });
+      const result = await handleAsk(input as any);
+
+      expect(result.structuredContent).toBeDefined();
+      const sc = result.structuredContent as any;
+      expect(sc.status).toBe("pending");
+      expect(sc.requestId).toBe("req-001");
+    });
+  }
+});
