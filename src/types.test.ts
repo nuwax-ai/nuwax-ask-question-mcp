@@ -248,4 +248,31 @@ describe("InteractionUiSchema", () => {
     const result = InteractionUiSchema.safeParse(validUi({ title: "" }));
     expect(result.success).toBe(false);
   });
+
+  it("接受包含文件上传 widget 的 schema", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({
+        schema: {
+          type: "object",
+          properties: {
+            screenshot: {
+              type: "string",
+              format: "data-url",
+              title: "截图",
+            },
+            documents: {
+              type: "array",
+              title: "相关文件",
+              items: { type: "string", format: "data-url" },
+            },
+          },
+        },
+        uiSchema: {
+          screenshot: { "ui:widget": "file", "ui:options": { accept: "image/*" } },
+          documents: { "ui:widget": "file", "ui:options": { multiple: true } },
+        },
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
 });

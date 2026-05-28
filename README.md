@@ -81,6 +81,38 @@ MCP stdio runs on stdin/stdout. No HTTP service, response sidecar, or MCP-side p
 
 The form answer is not returned through MCP. It is formatted by the client and sent as the next user chat message.
 
+## File Upload Widget
+
+Clients may render a file upload widget when a schema property uses:
+
+- `"format": "data-url"` — JSON Schema standard for file references
+- `"ui:widget": "file"` in `uiSchema` — explicit widget hint
+
+Supported `ui:options`:
+- `accept` (string): MIME type filter, e.g. `"image/*"`, `"application/pdf"`
+- `multiple` (boolean): Allow multiple file selection
+- `maxFileSize` (number): Max file size in bytes
+
+The client uploads files to the platform file service and includes the resulting
+URLs in the resume message. Example schema property:
+
+```json
+{
+  "screenshot": {
+    "type": "string",
+    "format": "data-url",
+    "title": "截图"
+  }
+}
+```
+
+With uiSchema hint:
+```json
+{
+  "screenshot": { "ui:widget": "file", "ui:options": { "accept": "image/*" } }
+}
+```
+
 ## Client Resume Message Format
 
 The client should format that chat message with user-facing labels instead of raw JSON. This keeps the answer readable for both the user and the next agent turn.
@@ -103,6 +135,8 @@ Formatting rules:
 - Boolean values should be rendered as `是` / `否`.
 - Empty values should be rendered as `未填写`.
 - Unknown form fields should still be included as readable `key：value` lines.
+- File upload values (format: data-url) should display file names, e.g. `截图：screenshot.png`
+- Multiple files should be joined with `、`, e.g. `附件：report.pdf、data.csv`
 - Do not wrap the answer in a JSON code block and do not send raw JSON unless the user explicitly typed JSON.
 
 Example:
