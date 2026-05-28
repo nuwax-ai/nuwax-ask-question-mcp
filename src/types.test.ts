@@ -275,4 +275,25 @@ describe("InteractionUiSchema", () => {
     );
     expect(result.success).toBe(true);
   });
+
+  it("接受包含单选列表 widget 的 schema", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({
+        schema: {
+          type: "object",
+          properties: {
+            framework: {
+              type: "string",
+              title: "前端框架",
+              enum: ["react", "vue", "angular", "svelte"],
+            },
+          },
+        },
+        uiSchema: {
+          framework: { "ui:widget": "list" },
+        },
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
 });

@@ -113,6 +113,33 @@ With uiSchema hint:
 }
 ```
 
+## List Widget (单选列表)
+
+Clients may render a vertical single-select list widget when a schema property uses:
+
+- `"ui:widget": "list"` in `uiSchema` — explicit widget hint
+
+The list widget displays all options vertically with radio-button styling, similar to the checkboxes widget but for single selection. This is suitable for longer option lists where inline radio buttons or segmented controls are not ideal.
+
+Example schema property:
+```json
+{
+  "framework": {
+    "type": "string",
+    "title": "前端框架",
+    "enum": ["react", "vue", "angular", "svelte", "solid"],
+    "enumNames": ["React", "Vue", "Angular", "Svelte", "SolidJS"]
+  }
+}
+```
+
+With uiSchema hint:
+```json
+{
+  "framework": { "ui:widget": "list" }
+}
+```
+
 ## Client Resume Message Format
 
 The client should format that chat message with user-facing labels instead of raw JSON. This keeps the answer readable for both the user and the next agent turn.
