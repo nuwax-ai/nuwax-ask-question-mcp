@@ -1,29 +1,14 @@
 import { z } from "zod";
 
-export const ASK_SCHEMA_VERSION = "nuwaclaw.mcp_ask.v1";
-export const INTERACTION_UI_SCHEMA_VERSION = "nuwaclaw.interaction.v1";
-
-/** Forward-compatible aliases accepted during the Nuwax/NuwaClaw naming transition. */
-export const ASK_SCHEMA_VERSION_ALIASES = ["nuwax.mcp_ask.v1"] as const;
-export const INTERACTION_UI_SCHEMA_VERSION_ALIASES = [
-  "nuwax.interaction.v1",
-] as const;
-
-export const ACCEPTED_ASK_SCHEMA_VERSIONS = [
-  ASK_SCHEMA_VERSION,
-  ...ASK_SCHEMA_VERSION_ALIASES,
-] as const;
-export const ACCEPTED_INTERACTION_UI_SCHEMA_VERSIONS = [
-  INTERACTION_UI_SCHEMA_VERSION,
-  ...INTERACTION_UI_SCHEMA_VERSION_ALIASES,
-] as const;
+export const ASK_SCHEMA_VERSION = "nuwax.mcp_ask.v1";
+export const INTERACTION_UI_SCHEMA_VERSION = "nuwax.interaction.v1";
 
 /** MCP 主工具名，与 ACP ToolCall.rawInput.toolName 一致。 */
 export const MCP_ASK_TOOL_NAME = "nuwax_ask_question" as const;
 
 export const InteractionUiSchema = z
   .object({
-    version: z.enum(ACCEPTED_INTERACTION_UI_SCHEMA_VERSIONS),
+    version: z.literal(INTERACTION_UI_SCHEMA_VERSION),
     presentation: z.enum(["modal", "inline", "wizard", "table"]),
     title: z.string().min(1),
     description: z.string().optional(),
@@ -56,7 +41,7 @@ export const InteractionUiSchema = z
 export const McpAskUserToolInputSchema = z
   .object({
     toolName: z.literal(MCP_ASK_TOOL_NAME),
-    schemaVersion: z.enum(ACCEPTED_ASK_SCHEMA_VERSIONS),
+    schemaVersion: z.literal(ASK_SCHEMA_VERSION),
     requestId: z.string().min(1),
     revision: z.number().int().positive(),
     sessionId: z.string().min(1),

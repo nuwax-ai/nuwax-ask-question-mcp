@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import { handleAsk } from "./index.js";
 import {
   ASK_SCHEMA_VERSION,
-  ASK_SCHEMA_VERSION_ALIASES,
   INTERACTION_UI_SCHEMA_VERSION,
-  INTERACTION_UI_SCHEMA_VERSION_ALIASES,
   MCP_ASK_TOOL_NAME,
 } from "./types.js";
 
@@ -102,18 +100,17 @@ describe("handleAsk", () => {
     expect(sc.requestId).toBe("req-001");
   });
 
-  it("兼容 nuwax 命名空间迁移别名", async () => {
+  it("拒绝旧 nuwaclaw 命名空间版本", async () => {
     const input = validInput({
-      schemaVersion: ASK_SCHEMA_VERSION_ALIASES[0],
+      schemaVersion: "nuwaclaw.mcp_ask.v1",
       ui: {
-        version: INTERACTION_UI_SCHEMA_VERSION_ALIASES[0],
+        version: "nuwaclaw.interaction.v1",
         presentation: "inline" as const,
         title: "Question Title",
         schema: { type: "object", properties: {} },
       },
     });
-    const result = await handleAsk(input as any);
 
-    expect((result.structuredContent as any).status).toBe("pending");
+    await expect(handleAsk(input as any)).rejects.toThrow();
   });
 });

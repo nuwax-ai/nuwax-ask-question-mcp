@@ -4,7 +4,7 @@
 | --- | --- |
 | 日期 | 2026-05-29 |
 | 目标 | 将 `nuwax-ask-question-mcp` 的 v1 契约、文档和测试稳定下来，并给 Web/Mobile/Bridge 落地提供明确验收边界 |
-| 当前决策 | v1 canonical 继续使用 `nuwaclaw.mcp_ask.v1` / `nuwaclaw.interaction.v1`；接受 `nuwax.*` 命名空间作为迁移别名，但不得要求现有 Web/Mobile 立即切换 |
+| 当前决策 | v1 仅使用最新 `nuwax.mcp_ask.v1` / `nuwax.interaction.v1`，不保留旧命名空间兼容 |
 | 实施状态 | `nuwax-intervention-ui` 的 `codex/acp-mode-intervention-ui` 与 `nuwax-mobile` 的 `feat/intervention-ui` 已接入；本计划保留合并前验收项 |
 
 ## 1. 范围
@@ -12,7 +12,7 @@
 本仓库负责：
 
 - MCP stdio server 工具注册与输入校验。
-- v1 schema 常量和命名空间迁移别名。
+- v1 schema 常量。
 - README / research / plan 文档。
 - 契约级单元测试。
 
@@ -28,7 +28,7 @@
 
 | 工作项 | 交付物 | 验收 |
 | --- | --- | --- |
-| 明确 schema 命名策略 | `src/types.ts` 导出 canonical 版本与别名数组 | 单测证明 `nuwaclaw.*` 与 `nuwax.*` 都可解析 |
+| 明确 schema 命名策略 | `src/types.ts` 导出最新 `nuwax.*` 版本常量 | 单测证明只接受 `nuwax.*` |
 | 保持单一工具入口 | 仅注册并接受 `nuwax_ask_question`，不再暴露 `nuwaclaw_ask_user` 兼容工具 | 单测证明历史工具名会被拒绝 |
 | 修正竞品调研 | `docs/COMPETITIVE-RESEARCH.md` 更新 MCP Elicitation 最新限制、URL mode 和风险 | 文档不再引用过期 2025-06-18 作为唯一依据 |
 | 补充计划文档 | `docs/DEVELOPMENT-PLAN.md` | P0/P1/P2、风险、验收命令可直接执行 |
@@ -55,7 +55,7 @@
 
 | 风险 | 影响 | 处理 |
 | --- | --- | --- |
-| schema 命名空间分裂 | Web/Mobile 识别不到卡片 | v1 canonical 保持 `nuwaclaw.*`，`nuwax.*` 仅作为兼容别名 |
+| schema 命名空间分裂 | Web/Mobile 识别不到卡片 | v1 只使用 `nuwax.*`，旧 `nuwaclaw.*` 需要由上下游同步迁移 |
 | `rawInput` 位置不一致 | 不同端解析结果不同 | 客户端 parser 必须兼容 `data.rawInput`、`data.ext.rawInput`、根级 `rawInput`，但权威契约仍写 `data.rawInput` |
 | 自然语言 resume 被模型误读 | Agent 下一轮不知道哪个表单已回答 | resume 文案包含标题、字段 label、展示值；复杂场景可在消息中增加 `requestId/revision` 的可读行 |
 | 敏感数据进入 LLM 上下文 | 安全风险 | `business` 和表单消息禁止 token、secret、支付凭据；敏感流程使用 URL fallback / Elicitation URL mode |
@@ -83,7 +83,7 @@ pnpm vitest run \
 
 本仓库完成定义：
 
-- 代码接受 canonical 和迁移别名，但输出文档清楚标明 canonical。
+- 代码只接受最新 `nuwax.*` schema 版本。
 - 仅主工具名 `nuwax_ask_question` 通过，历史工具名会被拒绝。
 - README 与竞品调研不再和源码契约冲突。
 - `npm test`、`npm run typecheck`、`npm run build` 均通过。

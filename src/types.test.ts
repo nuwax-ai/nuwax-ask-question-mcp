@@ -4,9 +4,7 @@ import {
   InteractionUiSchema,
   MCP_ASK_TOOL_NAME,
   ASK_SCHEMA_VERSION,
-  ASK_SCHEMA_VERSION_ALIASES,
   INTERACTION_UI_SCHEMA_VERSION,
-  INTERACTION_UI_SCHEMA_VERSION_ALIASES,
 } from "./types.js";
 
 /** 构造合法输入的工厂函数 */
@@ -55,14 +53,11 @@ describe("McpAskUserToolInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("接受 canonical schemaVersion 和迁移别名", () => {
-    const versions = [ASK_SCHEMA_VERSION, ...ASK_SCHEMA_VERSION_ALIASES];
-    for (const schemaVersion of versions) {
-      const result = McpAskUserToolInputSchema.safeParse(
-        validInput({ schemaVersion }),
-      );
-      expect(result.success).toBe(true);
-    }
+  it("仅接受最新 schemaVersion", () => {
+    const result = McpAskUserToolInputSchema.safeParse(
+      validInput({ schemaVersion: ASK_SCHEMA_VERSION }),
+    );
+    expect(result.success).toBe(true);
   });
 
   it("拒绝缺少必填字段", () => {
@@ -166,15 +161,18 @@ describe("InteractionUiSchema", () => {
     }
   });
 
-  it("接受 canonical ui.version 和迁移别名", () => {
-    const versions = [
-      INTERACTION_UI_SCHEMA_VERSION,
-      ...INTERACTION_UI_SCHEMA_VERSION_ALIASES,
-    ];
-    for (const version of versions) {
-      const result = InteractionUiSchema.safeParse(validUi({ version }));
-      expect(result.success).toBe(true);
-    }
+  it("仅接受最新 ui.version", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({ version: INTERACTION_UI_SCHEMA_VERSION }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("拒绝旧 nuwaclaw ui.version", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({ version: "nuwaclaw.interaction.v1" }),
+    );
+    expect(result.success).toBe(false);
   });
 
   it("允许额外字段 (passthrough)", () => {

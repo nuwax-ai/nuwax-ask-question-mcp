@@ -82,14 +82,14 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 
 ```json
 {
-  "schemaVersion": "nuwaclaw.mcp_ask.v1",
+  "schemaVersion": "nuwax.mcp_ask.v1",
   "requestId": "ask_123",
   "revision": 1,
   "sessionId": "session_123",
   "title": "Choose an option",
   "description": "The agent needs your decision before continuing.",
   "ui": {
-    "version": "nuwaclaw.interaction.v1",
+    "version": "nuwax.interaction.v1",
     "presentation": "inline",
     "title": "Choose an option",
     "schema": {
@@ -115,7 +115,7 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `schemaVersion` | string | ✅ | Must be `"nuwaclaw.mcp_ask.v1"` |
+| `schemaVersion` | string | ✅ | Must be `"nuwax.mcp_ask.v1"` |
 | `requestId` | string | ✅ | Unique request identifier |
 | `revision` | number | ✅ | Positive integer, version number |
 | `sessionId` | string | ✅ | Session ID |
@@ -130,7 +130,7 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | string | ✅ | Must be `"nuwaclaw.interaction.v1"` |
+| `version` | string | ✅ | Must be `"nuwax.interaction.v1"` |
 | `presentation` | string | ✅ | Display mode: `modal` / `inline` / `wizard` / `table` |
 | `title` | string | ✅ | Form title |
 | `description` | string | | Form description |

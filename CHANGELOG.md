@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.0 (2026-05-29)
+
+Breaking:
+
+- Switched schema versions to the latest `nuwax.mcp_ask.v1` and `nuwax.interaction.v1`.
+- Removed compatibility for the old `nuwaclaw.mcp_ask.v1` and `nuwaclaw.interaction.v1` schema namespaces.
+
 ## 2.0.0 (2026-05-29)
 
 Breaking:
