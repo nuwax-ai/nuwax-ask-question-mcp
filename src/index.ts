@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import { createRequire } from "node:module";
 import {
   ASK_SCHEMA_VERSION,
   INTERACTION_UI_SCHEMA_VERSION,
@@ -65,10 +66,13 @@ const legacyRawInputShape = {
   ...askUserPayloadShape,
 };
 
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
+
 const server = new McpServer(
   {
     name: "nuwax-ask-question-mcp",
-    version: "1.0.0",
+    version,
   },
   {
     instructions:
