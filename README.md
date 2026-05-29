@@ -1,48 +1,62 @@
 # Nuwax Ask Question MCP
 
-MCP server for Nuwax/NuwaClaw ask/question interactions.
+**[English](README.en.md)** | 中文
 
-The ask/question path is intentionally separate from ACP permission approval:
+[![npm version](https://img.shields.io/npm/v/nuwax-ask-question-mcp.svg)](https://www.npmjs.com/package/nuwax-ask-question-mcp)
+[![CI](https://github.com/nuwax-ai/nuwax-ask-question-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nuwax-ai/nuwax-ask-question-mcp/actions/workflows/ci.yml)
 
-- The agent calls the MCP tool `nuwax_ask_question` (Codex: `mcp__ask_question__nuwax_ask_question`). Legacy: `nuwaclaw_ask_user`.
-- The MCP tool input carries `rawInput.schemaVersion = "nuwaclaw.mcp_ask.v1"` and `rawInput.ui.version = "nuwaclaw.interaction.v1"`.
-- ACP clients surface the normal `tool_call` and `tool_call_update` progress events.
-- The MCP tool returns immediately and tells the agent to stop the current turn.
-- Web/Mobile submits the completed form as a normal chat message, which starts the next agent turn.
+Nuwax 交互式问答 MCP 服务器——用于 Agent 向用户提问并收集表单回答。
 
-ACP permission approval uses a different transport contract and should not be routed
-through this MCP stdio tool:
+## 工作原理
 
-- NuwaClaw/RCoder emits `message_type = "acpRequestPermission"` with `sub_type = "request_permission"`.
-- The event data carries `request_permission_request` and optional `save_rule`.
-- Web/Mobile approval responses go to Backend `POST /api/agent-interventions/{interventionId}/respond` as `permission_resolve_request`; Backend forwards the body to NuwaClaw `/computer/notify-resolved`.
-- `nuwax_ask_question` is the primary tool; Codex exposes it as `mcp__ask_question__nuwax_ask_question` when the MCP server key is `ask-question`.
-- `nuwaclaw_ask_user` remains as a legacy compatibility entry with the same response contract.
-
-## Install
-
-```bash
-npm install
-npm run build
+```
+┌─────────┐  调用 nuwax_ask_question  ┌──────────────────┐
+│  Agent  │ ───────────────────────▶ │ MCP Server (本包) │
+└─────────┘                          └──────────────────┘
+     │                                       │
+     │  返回 status: "pending"，Agent 停止本轮  │
+     ◀───────────────────────────────────────┘
+     │
+     │  客户端渲染表单，用户填写并提交
+     │
+     ▼
+┌──────────────────────────────────────────┐
+│  用户回答作为下一条聊天消息发送，开启下一轮  │
+└──────────────────────────────────────────┘
 ```
 
-Or use directly without installing:
+**核心流程：**
+
+1. Agent 调用 MCP 工具 `nuwax_ask_question`
+2. 工具立即返回 `status: "pending"`，Agent 停止当前轮次
+3. 客户端（Web/Mobile）根据 UI Schema 渲染交互表单
+4. 用户提交表单后，回答作为普通聊天消息发回，开启 Agent 下一轮
+
+> **注意：** 本工具仅处理问答交互。ACP 权限审批走独立的传输协议（`acpRequestPermission`），不经过此 MCP 工具。
+
+## 安装
+
+```bash
+npm install nuwax-ask-question-mcp
+```
+
+或者直接使用，无需安装：
 
 ```bash
 npx nuwax-ask-question-mcp
 ```
 
-## Run
+## 启动
 
 ```bash
 npm start
 ```
 
-MCP stdio runs on stdin/stdout. No HTTP service, response sidecar, or MCP-side pending store is required.
+服务器通过 stdin/stdout 进行 MCP 通信，无需 HTTP 服务或额外的等待存储。
 
-## MCP Client Configuration
+## MCP 客户端配置
 
-Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
+在你的 MCP 客户端配置中添加（适用于 Claude Desktop、Cursor、Codex 等）：
 
 ```json
 {
@@ -55,39 +69,81 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 }
 ```
 
-## MCP Tool Input
+> Codex 环境中，当 MCP server key 为 `ask-question` 时，工具暴露为 `mcp__ask_question__nuwax_ask_question`。
+
+## 工具列表
+
+| 工具名 | 说明 |
+|---|---|
+| `nuwax_ask_question` | 主工具，用于向用户发起交互式问答 |
+| `nuwaclaw_ask_user` | 历史兼容工具，契约与主工具一致 |
+
+## 工具入参
 
 ```json
 {
-  "toolName": "nuwax_ask_question",
   "schemaVersion": "nuwaclaw.mcp_ask.v1",
   "requestId": "ask_123",
   "revision": 1,
   "sessionId": "session_123",
-  "title": "Choose an option",
-  "description": "The agent needs your decision before continuing.",
+  "title": "请选择一个选项",
+  "description": "Agent 需要你的决定才能继续。",
   "ui": {
     "version": "nuwaclaw.interaction.v1",
     "presentation": "inline",
-    "title": "Choose an option",
+    "title": "请选择一个选项",
     "schema": {
       "type": "object",
       "properties": {
         "choice": {
           "type": "string",
-          "enum": ["a", "b"]
+          "title": "选项",
+          "enum": ["a", "b"],
+          "enumNames": ["选项A", "选项B"]
         }
       },
       "required": ["choice"]
     },
-    "submitLabel": "Submit",
-    "cancelLabel": "Cancel"
+    "submitLabel": "提交",
+    "cancelLabel": "取消"
   },
   "timeoutMs": 1800000
 }
 ```
 
-## Tool Result
+### 字段说明
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `schemaVersion` | string | ✅ | 固定值 `"nuwaclaw.mcp_ask.v1"` |
+| `requestId` | string | ✅ | 请求唯一标识 |
+| `revision` | number | ✅ | 正整数，版本号 |
+| `sessionId` | string | ✅ | 会话 ID |
+| `title` | string | ✅ | 问题标题 |
+| `description` | string | | 问题描述 |
+| `ui` | object | ✅ | UI 渲染定义（见下方） |
+| `business` | object | | 业务扩展数据 |
+| `timeoutMs` | number | | 超时时间（毫秒） |
+| `priority` | `"normal" \| "high"` | | 优先级 |
+
+### UI Schema 字段
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `version` | string | ✅ | 固定值 `"nuwaclaw.interaction.v1"` |
+| `presentation` | string | ✅ | 展示方式：`modal` / `inline` / `wizard` / `table` |
+| `title` | string | ✅ | 表单标题 |
+| `description` | string | | 表单描述 |
+| `schema` | object | ✅ | JSON Schema，定义表单字段 |
+| `uiSchema` | object | | UI 增强配置（控件类型、选项等） |
+| `table` | object | | 表格展示配置 |
+| `initialValue` | object | | 表单初始值 |
+| `steps` | array | | 向导步骤（wizard 模式） |
+| `submitLabel` | string | | 提交按钮文案 |
+| `cancelLabel` | string | | 取消按钮文案 |
+| `fallback` | object | | 降级方案：`text` + 可选 `webUrl` / `mobileUrl` |
+
+## 工具返回
 
 ```json
 {
@@ -98,24 +154,15 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 }
 ```
 
-`status = "pending"` is only the tool-result signal shown to the agent; this package does not keep a pending request or wait for a callback.
+- `status: "pending"` 是给 Agent 的信号，表示问题已展示给用户
+- 本包不维护待处理请求队列，也不等待回调
+- 用户的表单回答由客户端格式化后作为下一条聊天消息发送
 
-The form answer is not returned through MCP. It is formatted by the client and sent as the next user chat message.
+## 控件扩展
 
-## File Upload Widget
+### 文件上传控件
 
-Clients may render a file upload widget when a schema property uses:
-
-- `"format": "data-url"` — JSON Schema standard for file references
-- `"ui:widget": "file"` in `uiSchema` — explicit widget hint
-
-Supported `ui:options`:
-- `accept` (string): MIME type filter, e.g. `"image/*"`, `"application/pdf"`
-- `multiple` (boolean): Allow multiple file selection
-- `maxFileSize` (number): Max file size in bytes
-
-The client uploads files to the platform file service and includes the resulting
-URLs in the resume message. Example schema property:
+当 schema 字段使用以下配置时，客户端渲染文件上传控件：
 
 ```json
 {
@@ -127,22 +174,33 @@ URLs in the resume message. Example schema property:
 }
 ```
 
-With uiSchema hint:
+通过 `uiSchema` 指定控件类型和选项：
+
 ```json
 {
-  "screenshot": { "ui:widget": "file", "ui:options": { "accept": "image/*" } }
+  "screenshot": {
+    "ui:widget": "file",
+    "ui:options": {
+      "accept": "image/*",
+      "multiple": false,
+      "maxFileSize": 10485760
+    }
+  }
 }
 ```
 
-## List Widget (单选列表)
+`ui:options` 支持：
 
-Clients may render a vertical single-select list widget when a schema property uses:
+| 选项 | 类型 | 说明 |
+|---|---|---|
+| `accept` | string | MIME 类型过滤器，如 `"image/*"`、`"application/pdf"` |
+| `multiple` | boolean | 是否允许多文件选择 |
+| `maxFileSize` | number | 单文件最大大小（字节） |
 
-- `"ui:widget": "list"` in `uiSchema` — explicit widget hint
+### 列表控件（单选）
 
-The list widget displays all options vertically with radio-button styling, similar to the checkboxes widget but for single selection. This is suitable for longer option lists where inline radio buttons or segmented controls are not ideal.
+适用于选项较多的单选场景，渲染为垂直列表（Radio 风格）：
 
-Example schema property:
 ```json
 {
   "framework": {
@@ -154,40 +212,37 @@ Example schema property:
 }
 ```
 
-With uiSchema hint:
+通过 `uiSchema` 指定列表控件：
+
 ```json
 {
   "framework": { "ui:widget": "list" }
 }
 ```
 
-## Client Resume Message Format
+## 客户端恢复消息格式
 
-The client should format that chat message with user-facing labels instead of raw JSON. This keeps the answer readable for both the user and the next agent turn.
-
-Recommended format:
+客户端应将表单回答格式化为可读的聊天消息（而非原始 JSON），推荐格式：
 
 ```text
 我已填写「{title}」，表单内容如下：
 
-{field label}：{display value}
-{field label}：{display value}
+{字段标签}：{展示值}
+{字段标签}：{展示值}
 ```
 
-Formatting rules:
+格式化规则：
 
-- `{title}` uses the MCP input `title`, falling back to `ui.title`.
-- Field labels use JSON Schema `properties[field].title`; if absent, use the field key.
-- Enum values should be displayed with `uiSchema[field]["ui:options"].enumNames` when provided.
-- Array values should be joined with `、`.
-- Boolean values should be rendered as `是` / `否`.
-- Empty values should be rendered as `未填写`.
-- Unknown form fields should still be included as readable `key：value` lines.
-- File upload values (format: data-url) should display file names, e.g. `截图：screenshot.png`
-- Multiple files should be joined with `、`, e.g. `附件：report.pdf、data.csv`
-- Do not wrap the answer in a JSON code block and do not send raw JSON unless the user explicitly typed JSON.
+- `{title}` 取 MCP 输入的 `title`，回退使用 `ui.title`
+- 字段标签取 JSON Schema 中的 `properties[field].title`，缺省时使用字段名
+- 枚举值优先使用 `uiSchema[field]["ui:options"].enumNames` 中的展示名
+- 数组值用 `、` 连接
+- 布尔值渲染为 `是` / `否`
+- 空值渲染为 `未填写`
+- 文件上传值展示文件名，多文件用 `、` 连接
+- 不要将回答包裹在 JSON 代码块中
 
-Example:
+示例：
 
 ```text
 我已填写「请选择继续方式」，表单内容如下：
@@ -197,10 +252,33 @@ Example:
 检查项：代码检查、单元测试
 ```
 
-Cancel, skip, and timeout should also be normal chat messages:
+取消、跳过和超时同样以聊天消息发送：
 
 ```text
 我取消了「请选择继续方式」。
 我跳过了「请选择继续方式」。
 「请选择继续方式」已超时，没有收到表单答案。
 ```
+
+## 开发
+
+```bash
+npm install          # 安装依赖
+npm run build        # 构建
+npm run typecheck    # 类型检查
+npm test             # 运行测试
+npm run dev          # 开发模式运行
+```
+
+## 发布
+
+通过 Git tag 触发自动发布到 npm：
+
+```bash
+git tag v1.x.x
+git push origin v1.x.x
+```
+
+## License
+
+[MIT](LICENSE)
