@@ -71,25 +71,22 @@ npm start
 
 > Codex 环境中，当 MCP server key 为 `ask-question` 时，工具暴露为 `mcp__ask_question__nuwax_ask_question`。
 
-## 工具列表
+## 工具
 
-| 工具名 | 说明 |
-|---|---|
-| `nuwax_ask_question` | 主工具，用于向用户发起交互式问答 |
-| `nuwaclaw_ask_user` | 历史兼容工具，契约与主工具一致 |
+`nuwax_ask_question` — 向用户发起交互式问答。
 
 ## 工具入参
 
 ```json
 {
-  "schemaVersion": "nuwaclaw.mcp_ask.v1",
+  "schemaVersion": "nuwax.mcp_ask.v1",
   "requestId": "ask_123",
   "revision": 1,
   "sessionId": "session_123",
   "title": "请选择一个选项",
   "description": "Agent 需要你的决定才能继续。",
   "ui": {
-    "version": "nuwaclaw.interaction.v1",
+    "version": "nuwax.interaction.v1",
     "presentation": "inline",
     "title": "请选择一个选项",
     "schema": {
@@ -115,7 +112,7 @@ npm start
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `schemaVersion` | string | ✅ | 固定值 `"nuwaclaw.mcp_ask.v1"` |
+| `schemaVersion` | string | ✅ | 固定值 `"nuwax.mcp_ask.v1"` |
 | `requestId` | string | ✅ | 请求唯一标识 |
 | `revision` | number | ✅ | 正整数，版本号 |
 | `sessionId` | string | ✅ | 会话 ID |
@@ -130,7 +127,7 @@ npm start
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `version` | string | ✅ | 固定值 `"nuwaclaw.interaction.v1"` |
+| `version` | string | ✅ | 固定值 `"nuwax.interaction.v1"` |
 | `presentation` | string | ✅ | 展示方式：`modal` / `inline` / `wizard` / `table` |
 | `title` | string | ✅ | 表单标题 |
 | `description` | string | | 表单描述 |

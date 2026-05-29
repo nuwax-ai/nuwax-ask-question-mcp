@@ -1,21 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { handleAsk } from "./index.js";
 import {
-  MCP_ASK_TOOL_NAME,
+  ASK_SCHEMA_VERSION,
+  ASK_SCHEMA_VERSION_ALIASES,
+  INTERACTION_UI_SCHEMA_VERSION,
+  INTERACTION_UI_SCHEMA_VERSION_ALIASES,
   LEGACY_MCP_ASK_TOOL_NAMES,
+  MCP_ASK_TOOL_NAME,
 } from "./types.js";
 
 /** 构造合法输入的工厂函数 */
 function validInput(overrides = {}) {
   return {
     toolName: MCP_ASK_TOOL_NAME as string,
-    schemaVersion: "nuwaclaw.mcp_ask.v1",
+    schemaVersion: ASK_SCHEMA_VERSION,
     requestId: "req-001",
     revision: 1,
     sessionId: "sess-001",
     title: "Test Question",
     ui: {
-      version: "nuwaclaw.interaction.v1",
+      version: INTERACTION_UI_SCHEMA_VERSION,
       presentation: "inline" as const,
       title: "Question Title",
       schema: { type: "object", properties: {} },
@@ -89,6 +93,16 @@ describe("handleAsk", () => {
     await expect(handleAsk(input as any)).rejects.toThrow();
   });
 
+  it("toolName 为 MCP_ASK_TOOL_NAME 时正常工作", async () => {
+    const input = validInput({ toolName: MCP_ASK_TOOL_NAME });
+    const result = await handleAsk(input as any);
+
+    expect(result.structuredContent).toBeDefined();
+    const sc = result.structuredContent as any;
+    expect(sc.status).toBe("pending");
+    expect(sc.requestId).toBe("req-001");
+  });
+
   for (const legacyName of LEGACY_MCP_ASK_TOOL_NAMES) {
     it(`legacy toolName (${legacyName}) 正常工作`, async () => {
       const input = validInput({ toolName: legacyName });
@@ -100,4 +114,19 @@ describe("handleAsk", () => {
       expect(sc.requestId).toBe("req-001");
     });
   }
+
+  it("兼容 nuwax 命名空间迁移别名", async () => {
+    const input = validInput({
+      schemaVersion: ASK_SCHEMA_VERSION_ALIASES[0],
+      ui: {
+        version: INTERACTION_UI_SCHEMA_VERSION_ALIASES[0],
+        presentation: "inline" as const,
+        title: "Question Title",
+        schema: { type: "object", properties: {} },
+      },
+    });
+    const result = await handleAsk(input as any);
+
+    expect((result.structuredContent as any).status).toBe("pending");
+  });
 });

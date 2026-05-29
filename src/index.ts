@@ -6,19 +6,27 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { createRequire } from "node:module";
 import {
+  ACCEPTED_ASK_SCHEMA_VERSIONS,
+  ACCEPTED_INTERACTION_UI_SCHEMA_VERSIONS,
   ASK_SCHEMA_VERSION,
   INTERACTION_UI_SCHEMA_VERSION,
+  LEGACY_MCP_ASK_TOOL_NAMES,
   MCP_ASK_TOOL_NAME,
   McpAskUserToolInputSchema,
   type McpAskUserToolInput,
 } from "./types.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 /**
  * ask 工具业务入参（不含 toolName）。
  * MCP 注册名为 nuwax_ask_question；写入 ACP rawInput 时固定 toolName。
  */
 const askUserPayloadShape = {
-  schemaVersion: z.literal(ASK_SCHEMA_VERSION),
+  schemaVersion: z.enum(ACCEPTED_ASK_SCHEMA_VERSIONS).describe(
+    `Canonical value is ${ASK_SCHEMA_VERSION}; aliases are accepted for migration.`,
+  ),
   requestId: z.string().min(1),
   revision: z.number().int().positive(),
   sessionId: z.string().min(1),
@@ -26,7 +34,9 @@ const askUserPayloadShape = {
   description: z.string().optional(),
   ui: z
     .object({
-      version: z.literal(INTERACTION_UI_SCHEMA_VERSION),
+      version: z.enum(ACCEPTED_INTERACTION_UI_SCHEMA_VERSIONS).describe(
+        `Canonical value is ${INTERACTION_UI_SCHEMA_VERSION}; aliases are accepted for migration.`,
+      ),
       presentation: z.enum(["modal", "inline", "wizard", "table"]),
       title: z.string().min(1),
       description: z.string().optional(),
@@ -60,14 +70,11 @@ const askUserPayloadShape = {
   priority: z.enum(["normal", "high"]).optional(),
 };
 
-/** 兼容入参：调用方在 rawInput 里显式带 toolName（nuwaclaw_ask_user）。 */
+/** 兼容入参：调用方在 rawInput 里显式带历史 toolName。 */
 const legacyRawInputShape = {
-  toolName: z.enum(["nuwaclaw_ask_user", "nuwax_ask_user"]),
+  toolName: z.enum(LEGACY_MCP_ASK_TOOL_NAMES),
   ...askUserPayloadShape,
 };
-
-const require = createRequire(import.meta.url);
-const { version } = require("../package.json") as { version: string };
 
 const server = new McpServer(
   {

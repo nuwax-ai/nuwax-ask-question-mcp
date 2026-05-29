@@ -5,20 +5,22 @@ import {
   MCP_ASK_TOOL_NAME,
   LEGACY_MCP_ASK_TOOL_NAMES,
   ASK_SCHEMA_VERSION,
+  ASK_SCHEMA_VERSION_ALIASES,
   INTERACTION_UI_SCHEMA_VERSION,
+  INTERACTION_UI_SCHEMA_VERSION_ALIASES,
 } from "./types.js";
 
 /** 构造合法输入的工厂函数 */
 function validInput(overrides = {}) {
   return {
-    toolName: "nuwax_ask_question",
-    schemaVersion: "nuwaclaw.mcp_ask.v1",
+    toolName: MCP_ASK_TOOL_NAME,
+    schemaVersion: ASK_SCHEMA_VERSION,
     requestId: "req-001",
     revision: 1,
     sessionId: "sess-001",
     title: "Test Question",
     ui: {
-      version: "nuwaclaw.interaction.v1",
+      version: INTERACTION_UI_SCHEMA_VERSION,
       presentation: "inline" as const,
       title: "Question Title",
       schema: { type: "object", properties: {} },
@@ -30,7 +32,7 @@ function validInput(overrides = {}) {
 /** 构造合法 UI 的工厂函数 */
 function validUi(overrides = {}) {
   return {
-    version: "nuwaclaw.interaction.v1" as const,
+    version: INTERACTION_UI_SCHEMA_VERSION as const,
     presentation: "inline" as const,
     title: "Question Title",
     schema: { type: "object", properties: {} },
@@ -47,10 +49,20 @@ describe("McpAskUserToolInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("接受 3 种 toolName", () => {
+  it("接受主工具名和历史工具名", () => {
     const names = [MCP_ASK_TOOL_NAME, ...LEGACY_MCP_ASK_TOOL_NAMES];
     for (const toolName of names) {
       const result = McpAskUserToolInputSchema.safeParse(validInput({ toolName }));
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it("接受 canonical schemaVersion 和迁移别名", () => {
+    const versions = [ASK_SCHEMA_VERSION, ...ASK_SCHEMA_VERSION_ALIASES];
+    for (const schemaVersion of versions) {
+      const result = McpAskUserToolInputSchema.safeParse(
+        validInput({ schemaVersion }),
+      );
       expect(result.success).toBe(true);
     }
   });
@@ -146,6 +158,17 @@ describe("InteractionUiSchema", () => {
     const presentations = ["modal", "inline", "wizard", "table"] as const;
     for (const presentation of presentations) {
       const result = InteractionUiSchema.safeParse(validUi({ presentation }));
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it("接受 canonical ui.version 和迁移别名", () => {
+    const versions = [
+      INTERACTION_UI_SCHEMA_VERSION,
+      ...INTERACTION_UI_SCHEMA_VERSION_ALIASES,
+    ];
+    for (const version of versions) {
+      const result = InteractionUiSchema.safeParse(validUi({ version }));
       expect(result.success).toBe(true);
     }
   });
