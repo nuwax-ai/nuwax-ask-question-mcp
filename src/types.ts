@@ -21,12 +21,6 @@ export const ACCEPTED_INTERACTION_UI_SCHEMA_VERSIONS = [
 /** MCP 主工具名，与 ACP ToolCall.rawInput.toolName 一致。 */
 export const MCP_ASK_TOOL_NAME = "nuwax_ask_question" as const;
 
-/** 历史 rawInput.toolName，解析时仍接受以便旧客户端过渡。 */
-export const LEGACY_MCP_ASK_TOOL_NAMES = [
-  "nuwax_ask_user",
-  "nuwaclaw_ask_user",
-] as const;
-
 export const InteractionUiSchema = z
   .object({
     version: z.enum(ACCEPTED_INTERACTION_UI_SCHEMA_VERSIONS),
@@ -61,7 +55,7 @@ export const InteractionUiSchema = z
 
 export const McpAskUserToolInputSchema = z
   .object({
-    toolName: z.enum([MCP_ASK_TOOL_NAME, ...LEGACY_MCP_ASK_TOOL_NAMES]),
+    toolName: z.literal(MCP_ASK_TOOL_NAME),
     schemaVersion: z.enum(ACCEPTED_ASK_SCHEMA_VERSIONS),
     requestId: z.string().min(1),
     revision: z.number().int().positive(),

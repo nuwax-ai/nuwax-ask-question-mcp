@@ -70,14 +70,13 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 }
 ```
 
-> In Codex, when the MCP server key is `ask-question`, the tool is exposed as `mcp__ask_question__nuwax_ask_question`.
+> In Codex, when the MCP server key is `ask-question`, the displayed name usually includes the server key prefix, for example `mcp__ask_question__nuwax_ask_question`. The actual MCP tool name is only `nuwax_ask_question`.
 
 ## Available Tools
 
 | Tool | Description |
 |---|---|
 | `nuwax_ask_question` | Primary tool for interactive questions |
-| `nuwaclaw_ask_user` | Legacy compatibility tool with the same contract |
 
 ## Tool Input
 

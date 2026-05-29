@@ -37,7 +37,7 @@ sequenceDiagram
 
 | 仓库 | 职责 | MCP Ask 关键点 |
 | --- | --- | --- |
-| **nuwax-ask-question-mcp** | stdio MCP；Zod 校验；注册 `nuwax_ask_question` / `nuwaclaw_ask_user` | 仅返回 `pending`，无 HTTP、无 pending 队列 |
+| **nuwax-ask-question-mcp** | stdio MCP；Zod 校验；仅注册 `nuwax_ask_question` | 仅返回 `pending`，无 HTTP、无 pending 队列 |
 | **nuwaclaw** | ACP Host；MCP proxy；RCoder bridge；permission 服务 | 透传 `tool_call.rawInput`；Ask **不走** `acpRequestPermission` |
 | **agent-platform** | 会话 SSE、permission 回执转发 | 透传 `tool_call` 事件；Ask **不走** `/api/agent-interventions/{id}/respond` |
 | **nuwax / nuwax-intervention-ui** | Web 聊天 | main 线 ACP Permission 已实现；`codex/acp-mode-intervention-ui` 已接入 MCP Ask 专用 UI，待合并验收 |
@@ -220,7 +220,7 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 
 - v1 canonical 继续使用 `nuwaclaw.mcp_ask.v1` / `nuwaclaw.interaction.v1`，以兼容 NuwaClaw 与现有 Mobile 识别逻辑。
 - 接受 `nuwax.mcp_ask.v1` / `nuwax.interaction.v1` 作为迁移别名，但不要求现有客户端立即切换。
-- 历史工具名 `nuwax_ask_user` / `nuwaclaw_ask_user` 仍作为解析兼容；主工具保持 `nuwax_ask_question`。
+- 工具入口保持纯粹：仅注册并接受 `nuwax_ask_question`；`ask-question_nuwax_ask_question` 这类显示名中的 `ask-question` 来自 MCP server key 前缀，不是额外工具名。
 
 ### 7.2 不建议做的方向
 

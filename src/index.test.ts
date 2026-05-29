@@ -5,7 +5,6 @@ import {
   ASK_SCHEMA_VERSION_ALIASES,
   INTERACTION_UI_SCHEMA_VERSION,
   INTERACTION_UI_SCHEMA_VERSION_ALIASES,
-  LEGACY_MCP_ASK_TOOL_NAMES,
   MCP_ASK_TOOL_NAME,
 } from "./types.js";
 
@@ -102,18 +101,6 @@ describe("handleAsk", () => {
     expect(sc.status).toBe("pending");
     expect(sc.requestId).toBe("req-001");
   });
-
-  for (const legacyName of LEGACY_MCP_ASK_TOOL_NAMES) {
-    it(`legacy toolName (${legacyName}) 正常工作`, async () => {
-      const input = validInput({ toolName: legacyName });
-      const result = await handleAsk(input as any);
-
-      expect(result.structuredContent).toBeDefined();
-      const sc = result.structuredContent as any;
-      expect(sc.status).toBe("pending");
-      expect(sc.requestId).toBe("req-001");
-    });
-  }
 
   it("兼容 nuwax 命名空间迁移别名", async () => {
     const input = validInput({

@@ -3,7 +3,6 @@ import {
   McpAskUserToolInputSchema,
   InteractionUiSchema,
   MCP_ASK_TOOL_NAME,
-  LEGACY_MCP_ASK_TOOL_NAMES,
   ASK_SCHEMA_VERSION,
   ASK_SCHEMA_VERSION_ALIASES,
   INTERACTION_UI_SCHEMA_VERSION,
@@ -49,12 +48,11 @@ describe("McpAskUserToolInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("接受主工具名和历史工具名", () => {
-    const names = [MCP_ASK_TOOL_NAME, ...LEGACY_MCP_ASK_TOOL_NAMES];
-    for (const toolName of names) {
-      const result = McpAskUserToolInputSchema.safeParse(validInput({ toolName }));
-      expect(result.success).toBe(true);
-    }
+  it("仅接受主工具名", () => {
+    const result = McpAskUserToolInputSchema.safeParse(
+      validInput({ toolName: MCP_ASK_TOOL_NAME }),
+    );
+    expect(result.success).toBe(true);
   });
 
   it("接受 canonical schemaVersion 和迁移别名", () => {
@@ -133,10 +131,16 @@ describe("McpAskUserToolInputSchema", () => {
   });
 
   it("拒绝无效 toolName", () => {
-    const result = McpAskUserToolInputSchema.safeParse(
-      validInput({ toolName: "invalid_tool" }),
-    );
-    expect(result.success).toBe(false);
+    for (const toolName of [
+      "invalid_tool",
+      "nuwax_ask_user",
+      "nuwaclaw_ask_user",
+    ]) {
+      const result = McpAskUserToolInputSchema.safeParse(
+        validInput({ toolName }),
+      );
+      expect(result.success).toBe(false);
+    }
   });
 
   it("拒绝空 title", () => {

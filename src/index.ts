@@ -10,7 +10,6 @@ import {
   ACCEPTED_INTERACTION_UI_SCHEMA_VERSIONS,
   ASK_SCHEMA_VERSION,
   INTERACTION_UI_SCHEMA_VERSION,
-  LEGACY_MCP_ASK_TOOL_NAMES,
   MCP_ASK_TOOL_NAME,
   McpAskUserToolInputSchema,
   type McpAskUserToolInput,
@@ -70,12 +69,6 @@ const askUserPayloadShape = {
   priority: z.enum(["normal", "high"]).optional(),
 };
 
-/** 兼容入参：调用方在 rawInput 里显式带历史 toolName。 */
-const legacyRawInputShape = {
-  toolName: z.enum(LEGACY_MCP_ASK_TOOL_NAMES),
-  ...askUserPayloadShape,
-};
-
 const server = new McpServer(
   {
     name: "nuwax-ask-question-mcp",
@@ -124,26 +117,6 @@ server.registerTool(
     handleAsk({
       ...input,
       toolName: MCP_ASK_TOOL_NAME,
-    } as McpAskUserToolInput),
-);
-
-server.registerTool(
-  "nuwaclaw_ask_user",
-  {
-    title: "Ask Nuwaclaw User (legacy)",
-    description:
-      "Legacy compatibility tool. Same contract as nuwax_ask_question; rawInput.toolName must be nuwaclaw_ask_user.",
-    inputSchema: legacyRawInputShape,
-    annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      openWorldHint: false,
-    },
-  },
-  async (input): Promise<CallToolResult> =>
-    handleAsk({
-      ...input,
-      toolName: "nuwaclaw_ask_user",
     } as McpAskUserToolInput),
 );
 

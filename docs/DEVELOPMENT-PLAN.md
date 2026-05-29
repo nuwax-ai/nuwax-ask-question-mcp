@@ -12,7 +12,7 @@
 本仓库负责：
 
 - MCP stdio server 工具注册与输入校验。
-- v1 schema 常量、兼容别名和历史工具名兼容。
+- v1 schema 常量和命名空间迁移别名。
 - README / research / plan 文档。
 - 契约级单元测试。
 
@@ -29,7 +29,7 @@
 | 工作项 | 交付物 | 验收 |
 | --- | --- | --- |
 | 明确 schema 命名策略 | `src/types.ts` 导出 canonical 版本与别名数组 | 单测证明 `nuwaclaw.*` 与 `nuwax.*` 都可解析 |
-| 恢复历史工具名兼容 | 接受 `nuwax_ask_user` / `nuwaclaw_ask_user`，保留 `nuwaclaw_ask_user` 注册工具 | 单测覆盖主工具名和历史工具名 |
+| 保持单一工具入口 | 仅注册并接受 `nuwax_ask_question`，不再暴露 `nuwaclaw_ask_user` 兼容工具 | 单测证明历史工具名会被拒绝 |
 | 修正竞品调研 | `docs/COMPETITIVE-RESEARCH.md` 更新 MCP Elicitation 最新限制、URL mode 和风险 | 文档不再引用过期 2025-06-18 作为唯一依据 |
 | 补充计划文档 | `docs/DEVELOPMENT-PLAN.md` | P0/P1/P2、风险、验收命令可直接执行 |
 
@@ -84,7 +84,7 @@ pnpm vitest run \
 本仓库完成定义：
 
 - 代码接受 canonical 和迁移别名，但输出文档清楚标明 canonical。
-- 历史工具名兼容测试通过。
+- 仅主工具名 `nuwax_ask_question` 通过，历史工具名会被拒绝。
 - README 与竞品调研不再和源码契约冲突。
 - `npm test`、`npm run typecheck`、`npm run build` 均通过。
 
