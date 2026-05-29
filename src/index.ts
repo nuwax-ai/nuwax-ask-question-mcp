@@ -68,7 +68,7 @@ const legacyRawInputShape = {
 const server = new McpServer(
   {
     name: "nuwax-ask-question-mcp",
-    version: "0.1.0",
+    version: "1.0.0",
   },
   {
     instructions:

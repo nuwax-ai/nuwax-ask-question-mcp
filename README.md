@@ -26,6 +26,12 @@ npm install
 npm run build
 ```
 
+Or use directly without installing:
+
+```bash
+npx nuwax-ask-question-mcp
+```
+
 ## Run
 
 ```bash
@@ -33,6 +39,21 @@ npm start
 ```
 
 MCP stdio runs on stdin/stdout. No HTTP service, response sidecar, or MCP-side pending store is required.
+
+## MCP Client Configuration
+
+Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
+
+```json
+{
+  "mcpServers": {
+    "ask-question": {
+      "command": "npx",
+      "args": ["-y", "nuwax-ask-question-mcp"]
+    }
+  }
+}
+```
 
 ## MCP Tool Input
 
