@@ -40,8 +40,8 @@ sequenceDiagram
 | **nuwax-ask-question-mcp** | stdio MCP；Zod 校验；注册 `nuwax_ask_question` / `nuwaclaw_ask_user` | 仅返回 `pending`，无 HTTP、无 pending 队列 |
 | **nuwaclaw** | ACP Host；MCP proxy；RCoder bridge；permission 服务 | 透传 `tool_call.rawInput`；Ask **不走** `acpRequestPermission` |
 | **agent-platform** | 会话 SSE、permission 回执转发 | 透传 `tool_call` 事件；Ask **不走** `/api/agent-interventions/{id}/respond` |
-| **nuwax** | Web 聊天 | ACP Permission 已实现；**MCP Ask 专用 UI 未落地** |
-| **nuwax-mobile** | 移动聊天 | `mcp-ask-card` + `interventionAdapter` + `buildMcpAskResumeMessage` 基本对齐 v1；仍需补齐 `data.rawInput` 标准路径回归 |
+| **nuwax / nuwax-intervention-ui** | Web 聊天 | main 线 ACP Permission 已实现；`codex/acp-mode-intervention-ui` 已接入 MCP Ask 专用 UI，待合并验收 |
+| **nuwax-mobile** | 移动聊天 | `feat/intervention-ui` 已接入 `mcp-ask-card` + `interventionAdapter` + `buildMcpAskResumeMessage`，待合并验收 |
 
 ### 1.3 双链路对比（调研时易混淆）
 
@@ -192,8 +192,8 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 | **nuwax-ask-question-mcp** | ✅ 契约与工具就绪 | 已补充开发计划；继续补 Elicitation 子集映射文档与 JSON Schema 示例集 |
 | **nuwaclaw** | ✅ bridge 透传 tool_call | 文档化 MCP 注入配置；确认各引擎 `rawInput` 不被裁剪 |
 | **agent-platform** | ✅ 转发 tool_call SSE | 无需为 Ask 增 intervention API；保持与 permission 路径隔离 |
-| **nuwax Web** | ⚠️ **缺口** | 无 `nuwaclaw.mcp_ask.v1` 识别；无 `McpAskQuestionCard`；`conversationInfo` 仅处理 `normalizeAcpPermissionProgressMessage`；`chatUtils` 将 tool_call 插入 markdown 块但未解析 ask UI |
-| **nuwax-mobile** | ⚠️ 基本完整 | 与 Web 文案对齐（README 用「我已填写」mobile 用「我回答了」需统一）；补齐 `data.rawInput` 标准路径；wizard/table 复杂态需回归测试 |
+| **nuwax Web** | ✅ 分支已实现 | `codex/acp-mode-intervention-ui` 已接入 `AgentIntervention`、MCP Ask SSE patch、卡片、resume message 与历史 hydrate；待合并 main |
+| **nuwax-mobile** | ✅ 分支已实现 | `feat/intervention-ui` 已接入卡片与 adapter；已补齐 `data.rawInput` 标准路径与 resume 文案一致性；wizard/table 复杂态仍需回归测试 |
 
 ### 6.1 nuwax Web 建议实现路径（对标 mobile）
 
@@ -243,7 +243,7 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 1. **无可直接替换的竞品**：市面 MCP 交互包面向本地 CLI；框架 HITL 面向单宿主 run 恢复；均不匹配 Nuwax「云端 SSE + Web/Mobile 富表单 + 聊天消息回流」。
 2. **应坚持自研**：`nuwaclaw.mcp_ask.v1` + `nuwaclaw.interaction.v1` 作为跨端 UI 协议；轻量 MCP server 只做校验与 pending 信号。
 3. **应主动借鉴**：MCP Elicitation 三态、form 子集映射与 URL mode 安全 fallback；OpenAI/AI SDK 的 approval 结构化与可序列化 state；CopilotKit / approval-card 的卡片 UX。
-4. **当前最大 gap**：**nuwax Web 未实现 MCP Ask UI**，mobile 已先行；优先补齐 Web 以达到验收计划 ([acp-permission-ask-question-acceptance-plan](https://github.com/nuwax-ai/nuwaclaw/blob/main/docs/acp-permission-ask-question-acceptance-plan.md))。
+4. **当前最大 gap**：跨端接入已在分支完成，下一步重点是合并前验收：Web/Mobile 均需用标准 `agentSessionUpdate/tool_call + data.rawInput` 样例验证，并确认 Ask 不走 ACP permission API。
 
 ---
 

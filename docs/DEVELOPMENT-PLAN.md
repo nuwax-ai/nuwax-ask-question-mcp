@@ -5,6 +5,7 @@
 | 日期 | 2026-05-29 |
 | 目标 | 将 `nuwax-ask-question-mcp` 的 v1 契约、文档和测试稳定下来，并给 Web/Mobile/Bridge 落地提供明确验收边界 |
 | 当前决策 | v1 canonical 继续使用 `nuwaclaw.mcp_ask.v1` / `nuwaclaw.interaction.v1`；接受 `nuwax.*` 命名空间作为迁移别名，但不得要求现有 Web/Mobile 立即切换 |
+| 实施状态 | `nuwax-intervention-ui` 的 `codex/acp-mode-intervention-ui` 与 `nuwax-mobile` 的 `feat/intervention-ui` 已接入；本计划保留合并前验收项 |
 
 ## 1. 范围
 
@@ -32,13 +33,13 @@
 | 修正竞品调研 | `docs/COMPETITIVE-RESEARCH.md` 更新 MCP Elicitation 最新限制、URL mode 和风险 | 文档不再引用过期 2025-06-18 作为唯一依据 |
 | 补充计划文档 | `docs/DEVELOPMENT-PLAN.md` | P0/P1/P2、风险、验收命令可直接执行 |
 
-### P1：跨端落地
+### P1：跨端落地（已在分支实现，待合并验收）
 
 | 仓库 | 工作项 | 验收 |
 | --- | --- | --- |
-| `nuwax` | 新增 `utils/mcpAsk.ts`，识别 `data.rawInput`、`data.ext.rawInput`、根级 `rawInput`；新增 `McpAskQuestionCard` | Web 收到 `agentSessionUpdate/tool_call` 后渲染卡片，不出现 `acpRequestPermission` |
-| `nuwax` | 提交/取消/跳过/超时走普通聊天消息 | 不调用 `apiResolveAcpPermission` / intervention respond |
-| `nuwax-mobile` | 识别路径补齐 `data.rawInput`，与 Web resume 文案统一 | 标准 NuwaClaw 事件与当前 mobile 事件形态都可识别 |
+| `nuwax-intervention-ui` | `AgentIntervention` 组件、MCP Ask card、SSE patch、历史消息 hydrate、resume message 已接入 | Web 收到 `agentSessionUpdate/tool_call` 后渲染卡片，不出现 `acpRequestPermission` |
+| `nuwax-intervention-ui` | 提交/取消/跳过/超时走普通聊天消息 | 不调用 permission respond；`respondMcpAsk` 返回 resume 文本后走 `onSendMessage` |
+| `nuwax-mobile` | `mcp-ask-card`、`interventionAdapter`、`buildMcpAskResumeMessage` 已接入 | 标准 NuwaClaw 事件与 mobile 现有事件形态都可识别；resume 文案与 Web/README 一致 |
 | `nuwaclaw` | 文档化 MCP 注入配置，确认 `rawInput` 不被裁剪 | 日志/SSE 样例包含完整 `rawInput.ui` |
 
 ### P2：体验与治理
@@ -66,6 +67,16 @@
 npm test
 npm run typecheck
 npm run build
+```
+
+跨端分支已执行的局部验证：
+
+```bash
+cd /Users/apple/workspace/nuwax-intervention-ui
+pnpm vitest run \
+  src/components/business-component/AgentIntervention/utils/applyMcpAskToolCallSseEvent.test.ts \
+  src/components/business-component/AgentIntervention/utils/mcpAskResumeMessage.test.ts \
+  src/components/business-component/AgentIntervention/hooks/useAgentInterventionHandlers.test.ts
 ```
 
 ## 5. 完成定义
