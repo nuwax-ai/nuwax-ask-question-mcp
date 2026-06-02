@@ -69,7 +69,7 @@ npm start
 }
 ```
 
-> Codex 环境中，当 MCP server key 为 `ask-question` 时，工具显示名通常会带上 server key 前缀，例如 `mcp__ask_question__nuwax_ask_question`。实际 MCP 工具名只有 `nuwax_ask_question`。
+> **部分 MCP 客户端**（如 OpenAI Codex CLI）会在展示名上为 server key 加前缀，例如 `mcp__ask_question__nuwax_ask_question`（server key 为 `ask-question` 时）。**协议层工具名**始终是 `nuwax_ask_question`。
 
 ## 工具
 

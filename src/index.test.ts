@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { handleAsk } from "./index.js";
+import { ASK_TOOL_DESCRIPTION, handleAsk } from "./index.js";
 import {
   ASK_SCHEMA_VERSION,
+  ASK_STATUS_PENDING,
   INTERACTION_UI_SCHEMA_VERSION,
   MCP_ASK_TOOL_NAME,
 } from "./types.js";
@@ -32,7 +33,7 @@ describe("handleAsk", () => {
 
     expect(result.structuredContent).toBeDefined();
     const sc = result.structuredContent as any;
-    expect(sc.status).toBe("pending");
+    expect(sc.status).toBe(ASK_STATUS_PENDING);
     expect(sc.requestId).toBe("req-123");
     expect(sc.revision).toBe(3);
     expect(typeof sc.message).toBe("string");
@@ -96,7 +97,7 @@ describe("handleAsk", () => {
 
     expect(result.structuredContent).toBeDefined();
     const sc = result.structuredContent as any;
-    expect(sc.status).toBe("pending");
+    expect(sc.status).toBe(ASK_STATUS_PENDING);
     expect(sc.requestId).toBe("req-001");
   });
 
@@ -112,5 +113,21 @@ describe("handleAsk", () => {
     });
 
     await expect(handleAsk(input as any)).rejects.toThrow();
+  });
+});
+
+describe("ASK_TOOL_DESCRIPTION", () => {
+  it("包含当前 MCP 工具名（防止与 MCP_ASK_TOOL_NAME 失同步）", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain(MCP_ASK_TOOL_NAME);
+  });
+
+  it("包含当前 UI schema 版本（防止与 INTERACTION_UI_SCHEMA_VERSION 失同步）", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain(INTERACTION_UI_SCHEMA_VERSION);
+  });
+
+  it("描述中带引号的 status 值与 ASK_STATUS_PENDING 一致（防失同步）", () => {
+    // 用拼接的 quoted 模式匹配，避免与 description 措辞过度耦合：
+    // 改写为 'returns status "..."'、'status: ...' 等表达仍应通过。
+    expect(ASK_TOOL_DESCRIPTION).toContain(`status "${ASK_STATUS_PENDING}"`);
   });
 });

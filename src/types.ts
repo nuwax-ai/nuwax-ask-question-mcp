@@ -6,6 +6,12 @@ export const INTERACTION_UI_SCHEMA_VERSION = "nuwax.interaction.v1";
 /** MCP 主工具名，与 ACP ToolCall.rawInput.toolName 一致。 */
 export const MCP_ASK_TOOL_NAME = "nuwax_ask_question" as const;
 
+/**
+ * 工具立即返回的状态值。
+ * 工具不维护回调队列；该状态由 MCP Server 直接返回，agent 据此停止当前轮次。
+ */
+export const ASK_STATUS_PENDING = "pending" as const;
+
 export const InteractionUiSchema = z
   .object({
     version: z.literal(INTERACTION_UI_SCHEMA_VERSION),

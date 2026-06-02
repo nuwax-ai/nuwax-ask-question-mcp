@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createRequire } from "node:module";
 import {
   ASK_SCHEMA_VERSION,
+  ASK_STATUS_PENDING,
   INTERACTION_UI_SCHEMA_VERSION,
   MCP_ASK_TOOL_NAME,
   McpAskUserToolInputSchema,
@@ -69,15 +70,14 @@ const server = new McpServer(
     version,
   },
   {
-    instructions:
-      "Use nuwax_ask_question when you need the human user to answer an interactive question. The UI schema is carried in the tool input so ACP clients can render it from tool_call rawInput.",
+    instructions: `Use ${MCP_ASK_TOOL_NAME} when you need the human user to answer an interactive question. The UI schema is carried in the tool input so ACP clients can render it from tool_call rawInput.`,
   },
 );
 
 export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolResult> {
   const parsed = McpAskUserToolInputSchema.parse(input);
   const result = {
-    status: "pending" as const,
+    status: ASK_STATUS_PENDING,
     requestId: parsed.requestId,
     revision: parsed.revision,
     message:
@@ -94,12 +94,17 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
   };
 }
 
+/**
+ * MCP 工具描述。模板化后跟随 constants 漂移，避免与 types.ts 中
+ * MCP_ASK_TOOL_NAME / INTERACTION_UI_SCHEMA_VERSION / ASK_STATUS_PENDING 失同步。
+ */
+export const ASK_TOOL_DESCRIPTION = `Ask the user an interactive question. Provide a ${INTERACTION_UI_SCHEMA_VERSION} UI schema in the ui field. MCP tool name: ${MCP_ASK_TOOL_NAME}. Returns status "${ASK_STATUS_PENDING}" immediately; the user's answer arrives as a subsequent chat message.`;
+
 server.registerTool(
   MCP_ASK_TOOL_NAME,
   {
     title: "Ask Nuwax User (Question)",
-    description:
-      "Ask the user an interactive question. Provide a nuwax.interaction.v1 UI schema in ui. Codex exposes this as mcp__ask_question__nuwax_ask_question when the MCP server key is ask-question.",
+    description: ASK_TOOL_DESCRIPTION,
     inputSchema: askUserPayloadShape,
     annotations: {
       readOnlyHint: true,

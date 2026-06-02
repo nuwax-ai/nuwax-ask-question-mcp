@@ -70,7 +70,7 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 }
 ```
 
-> In Codex, when the MCP server key is `ask-question`, the displayed name usually includes the server key prefix, for example `mcp__ask_question__nuwax_ask_question`. The actual MCP tool name is only `nuwax_ask_question`.
+> **Some MCP clients** (e.g. OpenAI Codex CLI) prefix the displayed tool name with the server key, for example `mcp__ask_question__nuwax_ask_question` when the server key is `ask-question`. The **protocol-level tool name** is always `nuwax_ask_question`.
 
 ## Available Tools
 
