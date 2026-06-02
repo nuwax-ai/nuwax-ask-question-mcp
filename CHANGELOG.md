@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.0.1 (2026-06-02)
+
+Refactor:
+
+- Templated the MCP tool description in `registerTool` against `MCP_ASK_TOOL_NAME`, `INTERACTION_UI_SCHEMA_VERSION`, and the new `ASK_STATUS_PENDING` constant so the prose can no longer drift from the schema constants in `types.ts`.
+- Templated the `McpServer` `instructions` string against `MCP_ASK_TOOL_NAME` for the same reason.
+- Added a regression `describe("ASK_TOOL_DESCRIPTION")` test block asserting the registered description contains all three current constants.
+
+Docs:
+
+- Generalized the README callout about the `mcp__<server>__<tool>` prefix from "In Codex" to "Some MCP clients (e.g. OpenAI Codex CLI)" in both EN and CN, since the prefix is standard across compliant MCP clients.
+
 ## 3.0.0 (2026-05-29)
 
 Breaking:
