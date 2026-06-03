@@ -126,8 +126,23 @@ describe("ASK_TOOL_DESCRIPTION", () => {
   });
 
   it("描述中带引号的 status 值与 ASK_STATUS_PENDING 一致（防失同步）", () => {
-    // 用拼接的 quoted 模式匹配，避免与 description 措辞过度耦合：
-    // 改写为 'returns status "..."'、'status: ...' 等表达仍应通过。
     expect(ASK_TOOL_DESCRIPTION).toContain(`status "${ASK_STATUS_PENDING}"`);
+  });
+
+  it("包含触发场景关键短语，确保 Agent 能识别何时调用", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain("DO NOT guess");
+    expect(ASK_TOOL_DESCRIPTION).toContain("missing");
+    expect(ASK_TOOL_DESCRIPTION).toContain("clarification");
+  });
+
+  it("包含最小化 JSON 示例，帮助 Agent 构造参数", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain(ASK_SCHEMA_VERSION);
+    expect(ASK_TOOL_DESCRIPTION).toContain('"requestId"');
+    expect(ASK_TOOL_DESCRIPTION).toContain('"sessionId"');
+  });
+
+  it("包含编号触发场景列表", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain("1.");
+    expect(ASK_TOOL_DESCRIPTION).toContain("5.");
   });
 });

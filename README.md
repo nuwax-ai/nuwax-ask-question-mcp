@@ -71,6 +71,14 @@ npm start
 
 > **部分 MCP 客户端**（如 OpenAI Codex CLI）会在展示名上为 server key 加前缀，例如 `mcp__ask_question__nuwax_ask_question`（server key 为 `ask-question` 时）。**协议层工具名**始终是 `nuwax_ask_question`。
 
+### 推荐：Agent System Prompt 片段
+
+为了让 Agent 更主动地调用此工具收集用户信息，建议在 Agent 的系统提示词中加入以下内容：
+
+```
+When you need user input, preferences, or decisions, always use the nuwax_ask_question tool rather than asking in plain text. This provides a better user experience with interactive forms. Never guess or assume missing information — call nuwax_ask_question instead.
+```
+
 ## 工具
 
 `nuwax_ask_question` — 向用户发起交互式问答。

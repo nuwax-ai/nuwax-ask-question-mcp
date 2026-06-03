@@ -72,6 +72,14 @@ Add to your MCP client config (e.g. Claude Desktop, Cursor, Codex):
 
 > **Some MCP clients** (e.g. OpenAI Codex CLI) prefix the displayed tool name with the server key, for example `mcp__ask_question__nuwax_ask_question` when the server key is `ask-question`. The **protocol-level tool name** is always `nuwax_ask_question`.
 
+### Recommended: Agent System Prompt Snippet
+
+To encourage the agent to proactively use this tool for gathering user information, add the following to your agent's system prompt:
+
+```
+When you need user input, preferences, or decisions, always use the nuwax_ask_question tool rather than asking in plain text. This provides a better user experience with interactive forms. Never guess or assume missing information — call nuwax_ask_question instead.
+```
+
 ## Available Tools
 
 | Tool | Description |
