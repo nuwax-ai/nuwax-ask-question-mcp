@@ -19,7 +19,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "npm test && npm run build"
+    "prepublishOnly": "npm test && npm run build",
+    "sync:npmmirror": "node scripts/sync-npmmirror.mjs"
   },
   "keywords": [
     "mcp",
