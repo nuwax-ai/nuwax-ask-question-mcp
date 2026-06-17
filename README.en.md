@@ -168,6 +168,15 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 
 ## Widget Extensions
 
+### Important: Radio/Checkbox Fields Must Display Option Labels
+
+**Single-choice (radio) and multi-choice (checkbox) fields MUST display human-readable labels for each option — never show bare values without descriptions.**
+
+- Use `enumNames` or `uiSchema` `enumLabels` to provide clear descriptions for each option
+- Option labels should clearly communicate what each choice means
+- Bad example: `enum: ["yes", "no"]` (users don't know what yes/no represents)
+- Good example: `enum: ["yes", "no"]` + `enumNames: ["Yes, I agree", "No, I decline"]`
+
 ### File Upload Widget
 
 Clients render a file upload widget when a schema property uses:

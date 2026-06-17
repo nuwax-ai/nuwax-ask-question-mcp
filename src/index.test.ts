@@ -130,9 +130,9 @@ describe("ASK_TOOL_DESCRIPTION", () => {
   });
 
   it("包含触发场景关键短语，确保 Agent 能识别何时调用", () => {
-    expect(ASK_TOOL_DESCRIPTION).toContain("DO NOT guess");
-    expect(ASK_TOOL_DESCRIPTION).toContain("missing");
-    expect(ASK_TOOL_DESCRIPTION).toContain("clarification");
+    expect(ASK_TOOL_DESCRIPTION).toContain("ALWAYS use this tool");
+    expect(ASK_TOOL_DESCRIPTION).toContain("guessing");
+    expect(ASK_TOOL_DESCRIPTION).toContain("user input");
   });
 
   it("包含最小化 JSON 示例，帮助 Agent 构造参数", () => {
@@ -141,8 +141,8 @@ describe("ASK_TOOL_DESCRIPTION", () => {
     expect(ASK_TOOL_DESCRIPTION).toContain('"sessionId"');
   });
 
-  it("包含编号触发场景列表", () => {
-    expect(ASK_TOOL_DESCRIPTION).toContain("1.");
-    expect(ASK_TOOL_DESCRIPTION).toContain("5.");
+  it("包含 schema 设计规则", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain("enumNames");
+    expect(ASK_TOOL_DESCRIPTION).toContain("NEVER show bare values");
   });
 });

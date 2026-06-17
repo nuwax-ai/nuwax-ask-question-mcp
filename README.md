@@ -165,6 +165,15 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 
 ## 控件扩展
 
+### 重要：单选/多选控件必须展示选项文案
+
+**单选（radio）和多选（checkbox）控件必须为每个选项提供人类可读的标签（label），不能只显示裸值。**
+
+- 使用 `enumNames` 或 `uiSchema` 的 `enumLabels` 为选项提供清晰的描述
+- 选项标签应让用户明确知道每个选项的含义
+- 错误示例：`enum: ["yes", "no"]`（用户不知道 yes/no 代表什么）
+- 正确示例：`enum: ["yes", "no"]` + `enumNames: ["是，我同意", "否，我拒绝"]`
+
 ### 文件上传控件
 
 当 schema 字段使用以下配置时，客户端渲染文件上传控件：
