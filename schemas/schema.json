@@ -1,0 +1,1210 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.nuwax.ai/nuwax-ask-question/v1/schema.json",
+  "title": "Nuwax Ask Question Protocol",
+  "description": "统一契约：MCP 工具 nuwax_ask_question 入参、UI 渲染、控件类型与客户端回执。后端可据此生成 rawInput，Web/Mobile DockPanel 可直接渲染。对齐 JSON Schema + RJSF ui:widget 命名。",
+  "version": "1.0.0",
+  "$comment": "HAND-MAINTAINED: 此文件由 scripts/generate-schema.ts 部分自动生成。顶层 $comment / $schema / $id / title / description / version 为手写区域；$defs 中 WidgetType / WidgetCatalog / DeprecatedBuilderAliases / WidgetInferenceRules / NuwaxAskQuestionInput / InteractionUi 及 x-nuwax 的 protocolVersion / constants / transport / widgetTypes 等字段由 generate:schema 脚本覆写，勿手动编辑这些区域。",
+  "$defs": {
+    "AskSchemaVersion": {
+      "type": "string",
+      "const": "nuwax.mcp_ask.v1",
+      "description": "MCP Ask 契约版本"
+    },
+    "InteractionUiSchemaVersion": {
+      "type": "string",
+      "const": "nuwax.interaction.v1",
+      "description": "交互 UI 契约版本"
+    },
+    "McpAskToolName": {
+      "type": "string",
+      "const": "nuwax_ask_question",
+      "description": "MCP 工具名，与 ACP tool_call.rawInput.toolName 一致"
+    },
+    "Presentation": {
+      "type": "string",
+      "enum": [
+        "modal",
+        "inline",
+        "wizard",
+        "table"
+      ],
+      "description": "展示方式。DockPanel 均支持；inline 最常用"
+    },
+    "Priority": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "high"
+      ]
+    },
+    "WidgetType": {
+      "type": "string",
+      "enum": [
+        "text",
+        "textarea",
+        "number",
+        "radio",
+        "checkboxes",
+        "select",
+        "list",
+        "file",
+        "radio-with-custom"
+      ],
+      "description": "字段控件类型（ui:widget）。与 RJSF 通行命名对齐；Builder 层 field.type 应使用相同值"
+    },
+    "McpAskRespondAction": {
+      "type": "string",
+      "enum": [
+        "submit",
+        "cancel",
+        "skip",
+        "timeout"
+      ],
+      "description": "用户响应动作"
+    },
+    "McpAskResponseStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "submitting",
+        "submitted",
+        "cancelled",
+        "skipped",
+        "failed"
+      ]
+    },
+    "FieldUiOptions": {
+      "type": "object",
+      "description": "uiSchema 字段级或根级 ui:options",
+      "properties": {
+        "enumNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "选项展示文案，与 enum 一一对应；resume 消息优先读取"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "allowSkip": {
+          "type": "boolean",
+          "description": "根级 ui:options：是否显示跳过按钮"
+        },
+        "skipLabel": {
+          "type": "string"
+        },
+        "allowCustom": {
+          "type": "boolean",
+          "description": "radio-with-custom：是否允许自定义选项"
+        },
+        "otherValue": {
+          "type": "string",
+          "description": "radio-with-custom：自定义选项的值，默认 __custom__"
+        },
+        "otherField": {
+          "type": "string",
+          "description": "radio-with-custom：自定义输入框字段名，默认 {fieldName}Custom"
+        },
+        "accept": {
+          "type": "string",
+          "description": "file：MIME 过滤器，如 image/*"
+        },
+        "multiple": {
+          "type": "boolean",
+          "description": "file：是否允许多文件"
+        },
+        "maxFileSize": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "description": "file：单文件最大字节数"
+        }
+      },
+      "additionalProperties": true
+    },
+    "FieldUiSchemaEntry": {
+      "type": "object",
+      "description": "单个字段的 uiSchema 配置",
+      "properties": {
+        "ui:widget": {
+          "$ref": "#/$defs/WidgetType"
+        },
+        "ui:options": {
+          "$ref": "#/$defs/FieldUiOptions"
+        },
+        "ui:order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "UiSchema": {
+      "type": "object",
+      "description": "RJSF 风格 UI Schema，key 为字段名或 ui:options/ui:order 等根级键",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/FieldUiSchemaEntry"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/$defs/FieldUiOptions"
+          }
+        ]
+      }
+    },
+    "WizardStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "fields"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "Fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "webUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "mobileUrl": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "JsonSchemaPropertyBase": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "字段标签；resume 消息与 DockPanel 展示优先使用"
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": {}
+      },
+      "additionalProperties": true
+    },
+    "TextFieldProperty": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/JsonSchemaPropertyBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "string"
+            },
+            "minLength": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pattern": {
+              "type": "string"
+            }
+          },
+          "not": {
+            "required": [
+              "enum"
+            ]
+          }
+        }
+      ],
+      "description": "widget=text。单行文本；可省略 ui:widget，默认推断为 text"
+    },
+    "TextareaFieldProperty": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/JsonSchemaPropertyBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "string"
+            },
+            "minLength": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "not": {
+            "required": [
+              "enum"
+            ]
+          }
+        }
+      ],
+      "description": "widget=textarea。需 ui:widget=textarea"
+    },
+    "NumberFieldProperty": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/JsonSchemaPropertyBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "number",
+                "integer"
+              ]
+            },
+            "minimum": {
+              "type": "number"
+            },
+            "maximum": {
+              "type": "number"
+            },
+            "exclusiveMinimum": {
+              "type": "number"
+            },
+            "exclusiveMaximum": {
+              "type": "number"
+            },
+            "multipleOf": {
+              "type": "number"
+            }
+          }
+        }
+      ],
+      "description": "widget=number。需 ui:widget=number；type=number/integer 时可自动推断"
+    },
+    "EnumFieldProperty": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/JsonSchemaPropertyBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "enum"
+          ],
+          "properties": {
+            "type": {
+              "const": "string"
+            },
+            "enum": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "enumNames": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "与 enum 等长；单选/多选必须提供人类可读标签"
+            }
+          }
+        }
+      ],
+      "description": "widget=radio|select|list|radio-with-custom 的基础 schema"
+    },
+    "CheckboxesFieldProperty": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/JsonSchemaPropertyBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "items"
+          ],
+          "properties": {
+            "type": {
+              "const": "array"
+            },
+            "items": {
+              "type": "object",
+              "required": [
+                "type",
+                "enum"
+              ],
+              "properties": {
+                "type": {
+                  "const": "string"
+                },
+                "enum": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "additionalProperties": true
+            },
+            "minItems": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxItems": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "uniqueItems": {
+              "type": "boolean"
+            }
+          }
+        }
+      ],
+      "description": "widget=checkboxes。多选；可省略 ui:widget，有 items.enum 时自动推断"
+    },
+    "FileFieldProperty": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/JsonSchemaPropertyBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "format"
+          ],
+          "properties": {
+            "type": {
+              "const": "string"
+            },
+            "format": {
+              "const": "data-url"
+            }
+          }
+        }
+      ],
+      "description": "widget=file。需 ui:widget=file"
+    },
+    "FormFieldProperty": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TextFieldProperty"
+        },
+        {
+          "$ref": "#/$defs/TextareaFieldProperty"
+        },
+        {
+          "$ref": "#/$defs/NumberFieldProperty"
+        },
+        {
+          "$ref": "#/$defs/EnumFieldProperty"
+        },
+        {
+          "$ref": "#/$defs/CheckboxesFieldProperty"
+        },
+        {
+          "$ref": "#/$defs/FileFieldProperty"
+        }
+      ],
+      "description": "表单单个字段的 JSON Schema property"
+    },
+    "FormObjectSchema": {
+      "type": "object",
+      "description": "ui.schema 根：标准 JSON Schema object",
+      "required": [
+        "type",
+        "properties"
+      ],
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "properties": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/FormFieldProperty"
+          }
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "InteractionUi": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "nuwax.interaction.v1"
+        },
+        "presentation": {
+          "type": "string",
+          "enum": [
+            "modal",
+            "inline",
+            "wizard",
+            "table"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "uiSchema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "table": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "initialValue": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "fields"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "submitLabel": {
+          "type": "string"
+        },
+        "cancelLabel": {
+          "type": "string"
+        },
+        "fallback": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "webUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "mobileUrl": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "presentation",
+        "title",
+        "schema"
+      ],
+      "additionalProperties": true,
+      "description": "交互 UI 定义；DockPanel / McpAskQuestionCard 直接消费"
+    },
+    "NuwaxAskQuestionInput": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "nuwax.mcp_ask.v1"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "ui": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "const": "nuwax.interaction.v1"
+            },
+            "presentation": {
+              "type": "string",
+              "enum": [
+                "modal",
+                "inline",
+                "wizard",
+                "table"
+              ]
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "schema": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "uiSchema": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "table": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "initialValue": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "fields"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "submitLabel": {
+              "type": "string"
+            },
+            "cancelLabel": {
+              "type": "string"
+            },
+            "fallback": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "webUrl": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "mobileUrl": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "version",
+            "presentation",
+            "title",
+            "schema"
+          ],
+          "additionalProperties": true
+        },
+        "business": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "high"
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "revision",
+        "sessionId",
+        "title",
+        "ui"
+      ],
+      "additionalProperties": false,
+      "title": "MCP Tool Input",
+      "description": "nuwax_ask_question 工具入参（不含 toolName）"
+    },
+    "McpAskUserToolInput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/NuwaxAskQuestionInput"
+        },
+        {
+          "type": "object",
+          "required": [
+            "toolName"
+          ],
+          "properties": {
+            "toolName": {
+              "$ref": "#/$defs/McpAskToolName"
+            }
+          }
+        }
+      ],
+      "title": "ACP rawInput",
+      "description": "tool_call.rawInput 完整形态；后端生成此结构即可驱动 DockPanel"
+    },
+    "NuwaxAskQuestionOutput": {
+      "type": "object",
+      "title": "MCP Tool Output",
+      "description": "工具 structuredContent 返回值",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "requestId",
+        "revision",
+        "message"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "pending",
+          "description": "Agent 收到后立即停止当前轮次"
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "McpAskRespondPayload": {
+      "type": "object",
+      "title": "Client Respond Payload",
+      "description": "Web/Mobile 用户提交后内部 payload（非 MCP 协议层）",
+      "additionalProperties": false,
+      "required": [
+        "interventionId",
+        "revision",
+        "source",
+        "protocol",
+        "action"
+      ],
+      "properties": {
+        "interventionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "等于 input.requestId"
+        },
+        "toolCallId": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "source": {
+          "const": "mcp_ask"
+        },
+        "protocol": {
+          "const": "mcp"
+        },
+        "action": {
+          "$ref": "#/$defs/McpAskRespondAction"
+        },
+        "formData": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "用户填写的表单值"
+        },
+        "answeredBy": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "web",
+                "mobile"
+              ]
+            },
+            "userId": {
+              "type": "string"
+            },
+            "clientId": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "answeredAt": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "WidgetCatalogEntry": {
+      "type": "object",
+      "description": "Builder 控件目录项；field.type 与 ui:widget 使用相同命名",
+      "required": [
+        "type",
+        "label",
+        "jsonSchema",
+        "uiSchema"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/WidgetType"
+        },
+        "label": {
+          "type": "string",
+          "description": "Builder 中文展示名"
+        },
+        "jsonSchema": {
+          "$ref": "#/$defs/FormFieldProperty"
+        },
+        "uiSchema": {
+          "$ref": "#/$defs/FieldUiSchemaEntry"
+        },
+        "autoInfer": {
+          "type": "boolean",
+          "description": "省略 ui:widget 时是否可自动推断"
+        },
+        "clientSupport": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "planned"
+          ],
+          "description": "nuwax Web DockPanel 渲染支持状态"
+        }
+      }
+    },
+    "WidgetCatalog": {
+      "type": "array",
+      "description": "v1 正式控件目录",
+      "items": {
+        "$ref": "#/$defs/WidgetCatalogEntry"
+      },
+      "default": [
+        {
+          "type": "text",
+          "label": "单行文本",
+          "jsonSchema": {
+            "type": "string",
+            "title": "字段名"
+          },
+          "uiSchema": {},
+          "autoInfer": true,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "textarea",
+          "label": "多行文本",
+          "jsonSchema": {
+            "type": "string",
+            "title": "备注"
+          },
+          "uiSchema": {
+            "ui:widget": "textarea"
+          },
+          "autoInfer": false,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "number",
+          "label": "数字",
+          "jsonSchema": {
+            "type": "integer",
+            "title": "数量",
+            "minimum": 0
+          },
+          "uiSchema": {
+            "ui:widget": "number"
+          },
+          "autoInfer": true,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "radio",
+          "label": "单选",
+          "jsonSchema": {
+            "type": "string",
+            "title": "选项",
+            "enum": [
+              "a",
+              "b"
+            ],
+            "enumNames": [
+              "选项A",
+              "选项B"
+            ]
+          },
+          "uiSchema": {
+            "ui:widget": "radio"
+          },
+          "autoInfer": true,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "checkboxes",
+          "label": "多选",
+          "jsonSchema": {
+            "type": "array",
+            "title": "检查项",
+            "items": {
+              "type": "string",
+              "enum": [
+                "lint",
+                "test"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "uiSchema": {
+            "ui:widget": "checkboxes",
+            "ui:options": {
+              "enumNames": [
+                "代码检查",
+                "单元测试"
+              ]
+            }
+          },
+          "autoInfer": true,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "select",
+          "label": "下拉单选",
+          "jsonSchema": {
+            "type": "string",
+            "title": "选项",
+            "enum": [
+              "a",
+              "b"
+            ],
+            "enumNames": [
+              "选项A",
+              "选项B"
+            ]
+          },
+          "uiSchema": {
+            "ui:widget": "select"
+          },
+          "autoInfer": false,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "list",
+          "label": "列表单选",
+          "jsonSchema": {
+            "type": "string",
+            "title": "框架",
+            "enum": [
+              "react",
+              "vue"
+            ],
+            "enumNames": [
+              "React",
+              "Vue"
+            ]
+          },
+          "uiSchema": {
+            "ui:widget": "list"
+          },
+          "autoInfer": false,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "file",
+          "label": "文件上传",
+          "jsonSchema": {
+            "type": "string",
+            "format": "data-url",
+            "title": "截图"
+          },
+          "uiSchema": {
+            "ui:widget": "file",
+            "ui:options": {
+              "accept": "image/*",
+              "multiple": false
+            }
+          },
+          "autoInfer": false,
+          "clientSupport": "supported"
+        },
+        {
+          "type": "radio-with-custom",
+          "label": "单选+自定义",
+          "jsonSchema": {
+            "type": "string",
+            "title": "方式",
+            "enum": [
+              "deploy",
+              "test"
+            ],
+            "enumNames": [
+              "部署",
+              "测试"
+            ]
+          },
+          "uiSchema": {
+            "ui:widget": "radio-with-custom",
+            "ui:options": {
+              "allowCustom": true
+            }
+          },
+          "autoInfer": false,
+          "clientSupport": "supported"
+        }
+      ]
+    },
+    "WidgetInferenceRules": {
+      "type": "array",
+      "description": "未写 ui:widget 时 nuwax parseMcpAskSchema 推断规则",
+      "readOnly": true,
+      "default": [
+        {
+          "when": "items.enum 存在且 type=array",
+          "widget": "checkboxes"
+        },
+        {
+          "when": "enum 存在",
+          "widget": "radio"
+        },
+        {
+          "when": "type=number 或 type=integer",
+          "widget": "number"
+        },
+        {
+          "when": "type=string 且无 enum",
+          "widget": "text"
+        },
+        {
+          "when": "其他",
+          "widget": "text"
+        }
+      ]
+    },
+    "DeprecatedBuilderAliases": {
+      "type": "object",
+      "description": "已废弃的 Builder 别名，生成 rawInput 时必须映射",
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "const": "text"
+        },
+        "checkbox": {
+          "const": "checkboxes"
+        }
+      }
+    },
+    "CompleteFormExampleRef": {
+      "type": "object",
+      "description": "完整 rawInput 示例见 schemas/examples/complete-form.json",
+      "$comment": "示例含 radio / textarea / checkboxes / number 四类控件"
+    }
+  },
+  "examples": [
+    {
+      "$comment": "完整示例文件：schemas/examples/complete-form.json",
+      "primaryEntry": "McpAskUserToolInput"
+    }
+  ],
+  "oneOf": [
+    {
+      "$ref": "#/$defs/McpAskUserToolInput",
+      "title": "rawInput",
+      "description": "后端 → SSE/tool_call → DockPanel（推荐入口）"
+    },
+    {
+      "$ref": "#/$defs/NuwaxAskQuestionInput",
+      "title": "mcpToolInput",
+      "description": "MCP 工具调用入参"
+    },
+    {
+      "$ref": "#/$defs/NuwaxAskQuestionOutput",
+      "title": "mcpToolOutput",
+      "description": "MCP 工具返回"
+    },
+    {
+      "$ref": "#/$defs/McpAskRespondPayload",
+      "title": "clientRespond",
+      "description": "客户端用户响应"
+    }
+  ],
+  "x-nuwax": {
+    "protocolVersion": "1.0.0",
+    "constants": {
+      "schemaVersion": "nuwax.mcp_ask.v1",
+      "uiVersion": "nuwax.interaction.v1",
+      "toolName": "nuwax_ask_question",
+      "pendingStatus": "pending",
+      "transport": "stdio"
+    },
+    "primaryEntry": "McpAskUserToolInput",
+    "widgetCatalog": {
+      "$ref": "#/$defs/WidgetCatalog"
+    },
+    "widgetInferenceRules": {
+      "$ref": "#/$defs/WidgetInferenceRules"
+    },
+    "deprecatedBuilderAliases": {
+      "$ref": "#/$defs/DeprecatedBuilderAliases"
+    },
+    "completeFormExample": "schemas/examples/complete-form.json",
+    "renderPipeline": [
+      "rawInput",
+      "parseMcpAskToolInput",
+      "mcpAskInteractions",
+      "DockPanel",
+      "McpAskQuestionCard",
+      "parseInteractionFields",
+      "McpAskFormField"
+    ],
+    "widgetTypes": [
+      "text",
+      "textarea",
+      "number",
+      "radio",
+      "checkboxes",
+      "select",
+      "list",
+      "file",
+      "radio-with-custom"
+    ],
+    "transport": "stdio",
+    "transportNote": "MCP Host 以子进程 stdio 拉起本包；用户表单由 nuwax Web/Mobile 渲染，不经本进程 HTTP"
+  }
+}
