@@ -52,7 +52,28 @@ npx nuwax-ask-question-mcp
 npm start
 ```
 
-服务器通过 stdin/stdout 进行 MCP 通信，无需 HTTP 服务或额外的等待存储。
+### 传输层（v1：仅 stdio）
+
+本包 **只支持 MCP stdio 传输**（stdin/stdout JSON-RPC），由 MCP Host 以子进程方式拉起：
+
+```json
+{
+  "mcpServers": {
+    "ask-question": {
+      "command": "npx",
+      "args": ["-y", "nuwax-ask-question-mcp"]
+    }
+  }
+}
+```
+
+**不提供、也不计划在本包内实现：**
+
+- MCP HTTP / Streamable HTTP 服务端
+- 独立 pending 队列或回调等待
+- 用户回答的 sidecar API
+
+用户表单由 **nuwax Web/Mobile** 根据 `tool_call.rawInput` 渲染；回答以普通聊天消息回流，与 MCP stdio 进程无直接 HTTP 连接。
 
 ## MCP 客户端配置
 
@@ -163,6 +184,76 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 - 本包不维护待处理请求队列，也不等待回调
 - 用户的表单回答由客户端格式化后作为下一条聊天消息发送
 
+## JSON Schema 契约
+
+本包提供统一契约文件，供后端 Builder 生成 `rawInput`、Web/Mobile DockPanel 渲染表单：
+
+| 文件 | 用途 |
+|---|---|
+| [`schemas/schema.json`](schemas/schema.json) | 完整协议定义（入参、UI、控件目录、推断规则） |
+| [`schemas/examples/complete-form.json`](schemas/examples/complete-form.json) | 可直接渲染的完整 rawInput 示例 |
+
+引用方式：
+
+```bash
+# npm 包
+import schema from 'nuwax-ask-question-mcp/schemas/schema.json' assert { type: 'json' };
+
+# Node.js require
+const schema = require('nuwax-ask-question-mcp/schemas/schema.json');
+```
+
+`schema.json` 的 `x-nuwax.widgetCatalog` 列出全部控件类型；`field.type` 与 `ui:widget` 使用相同命名（RJSF 对齐）：
+
+| `ui:widget` | 说明 | 自动推断 |
+|---|---|---|
+| `text` | 单行文本 | ✅ `type: string` |
+| `textarea` | 多行文本 | ❌ 需显式指定 |
+| `number` | 数字 | ✅ `type: number/integer` |
+| `radio` | 单选 | ✅ 有 `enum` |
+| `checkboxes` | 多选 | ✅ `array` + `items.enum` |
+| `select` | 下拉单选 | ❌ |
+| `list` | 列表单选 | ❌ |
+| `file` | 文件上传 | ❌ 需 `format: data-url` |
+| `radio-with-custom` | 单选 + 自定义输入 | ❌ 需 `ui:options.allowCustom: true` |
+
+废弃别名：`input` → `text`，`checkbox` → `checkboxes`。
+
+### Builder SDK（生成 rawInput）
+
+后端表单设计器可用 `buildMcpAskRawInput` 将字段列表转为 DockPanel 可渲染的 `rawInput`：
+
+```ts
+import { buildMcpAskRawInput } from 'nuwax-ask-question-mcp/build-raw-input';
+
+const rawInput = buildMcpAskRawInput({
+  requestId: 'ask_001',
+  revision: 1,
+  sessionId: 'sess_001',
+  title: '请确认继续方式',
+  fields: [
+    {
+      name: 'choice',
+      type: 'radio', // 也支持废弃别名 input / checkbox
+      label: '选项',
+      required: true,
+      options: [
+        { value: 'test', label: '先跑测试' },
+        { value: 'deploy', label: '直接部署' },
+      ],
+    },
+    { name: 'count', type: 'number', label: '并发数', minimum: 1, maximum: 10 },
+    { name: 'remark', type: 'textarea', label: '备注' },
+  ],
+});
+```
+
+同步 JSON Schema：
+
+```bash
+npm run generate:schema   # 从 Zod + widgets.ts 更新 schemas/schema.json
+```
+
 ## 控件扩展
 
 ### 重要：单选/多选控件必须展示选项文案
@@ -210,6 +301,29 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 | `accept` | string | MIME 类型过滤器，如 `"image/*"`、`"application/pdf"` |
 | `multiple` | boolean | 是否允许多文件选择 |
 | `maxFileSize` | number | 单文件最大大小（字节） |
+
+### 数字控件
+
+当 schema 字段使用 `type: "number"` 或 `type: "integer"` 时，客户端渲染数字输入框：
+
+```json
+{
+  "count": {
+    "type": "integer",
+    "title": "并发数",
+    "minimum": 1,
+    "maximum": 10
+  }
+}
+```
+
+通过 `uiSchema` 显式指定（可省略，`number/integer` 会自动推断）：
+
+```json
+{
+  "count": { "ui:widget": "number" }
+}
+```
 
 ### 列表控件（单选）
 

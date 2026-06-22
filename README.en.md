@@ -53,7 +53,28 @@ npx nuwax-ask-question-mcp
 npm start
 ```
 
-The server communicates via MCP over stdin/stdout. No HTTP service, response sidecar, or pending store is required.
+### Transport (v1: stdio only)
+
+This package **only supports MCP stdio transport** (stdin/stdout JSON-RPC). The MCP host spawns it as a child process:
+
+```json
+{
+  "mcpServers": {
+    "ask-question": {
+      "command": "npx",
+      "args": ["-y", "nuwax-ask-question-mcp"]
+    }
+  }
+}
+```
+
+**Not provided in this package (by design):**
+
+- MCP HTTP / Streamable HTTP server
+- Pending queue or callback wait loop
+- Sidecar API for user answers
+
+Forms are rendered by **nuwax Web/Mobile** from `tool_call.rawInput`; answers return as normal chat messages, not via HTTP to this MCP process.
 
 ## MCP Client Configuration
 
@@ -166,6 +187,76 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 - This package does not maintain a pending request queue or wait for callbacks
 - The user's form answer is formatted by the client and sent as the next chat message
 
+## JSON Schema Contract
+
+This package ships a unified contract for backend builders to generate `rawInput` and for Web/Mobile DockPanel rendering:
+
+| File | Purpose |
+|---|---|
+| [`schemas/schema.json`](schemas/schema.json) | Full protocol (input, UI, widget catalog, inference rules) |
+| [`schemas/examples/complete-form.json`](schemas/examples/complete-form.json) | Complete renderable rawInput example |
+
+Usage:
+
+```bash
+# npm package
+import schema from 'nuwax-ask-question-mcp/schemas/schema.json' assert { type: 'json' };
+
+# Node.js require
+const schema = require('nuwax-ask-question-mcp/schemas/schema.json');
+```
+
+Widget types in `x-nuwax.widgetCatalog` — `field.type` and `ui:widget` use the same names (RJSF-aligned):
+
+| `ui:widget` | Description | Auto-infer |
+|---|---|---|
+| `text` | Single-line text | ✅ `type: string` |
+| `textarea` | Multi-line text | ❌ explicit only |
+| `number` | Number input | ✅ `type: number/integer` |
+| `radio` | Single choice | ✅ with `enum` |
+| `checkboxes` | Multi choice | ✅ `array` + `items.enum` |
+| `select` | Dropdown | ❌ |
+| `list` | List single-select | ❌ |
+| `file` | File upload | ❌ needs `format: data-url` |
+| `radio-with-custom` | Radio + custom input | ❌ needs `ui:options.allowCustom: true` |
+
+Deprecated aliases: `input` → `text`, `checkbox` → `checkboxes`.
+
+### Builder SDK (rawInput generation)
+
+Backend form builders can use `buildMcpAskRawInput` to produce DockPanel-ready `rawInput`:
+
+```ts
+import { buildMcpAskRawInput } from 'nuwax-ask-question-mcp/build-raw-input';
+
+const rawInput = buildMcpAskRawInput({
+  requestId: 'ask_001',
+  revision: 1,
+  sessionId: 'sess_001',
+  title: 'Choose how to continue',
+  fields: [
+    {
+      name: 'choice',
+      type: 'radio',
+      label: 'Option',
+      required: true,
+      options: [
+        { value: 'test', label: 'Run tests first' },
+        { value: 'deploy', label: 'Deploy directly' },
+      ],
+    },
+    { name: 'count', type: 'number', label: 'Concurrency', minimum: 1, maximum: 10 },
+    { name: 'remark', type: 'textarea', label: 'Notes' },
+  ],
+});
+```
+
+Regenerate JSON Schema:
+
+```bash
+npm run generate:schema   # refresh schemas/schema.json from Zod + widgets.ts
+```
+
 ## Widget Extensions
 
 ### Important: Radio/Checkbox Fields Must Display Option Labels
@@ -213,6 +304,29 @@ Specify the widget type and options via `uiSchema`:
 | `accept` | string | MIME type filter, e.g. `"image/*"`, `"application/pdf"` |
 | `multiple` | boolean | Allow multiple file selection |
 | `maxFileSize` | number | Max file size in bytes |
+
+### Number Widget
+
+When a schema field uses `type: "number"` or `type: "integer"`, clients render a number input:
+
+```json
+{
+  "count": {
+    "type": "integer",
+    "title": "Concurrency",
+    "minimum": 1,
+    "maximum": 10
+  }
+}
+```
+
+Explicit via `uiSchema` (optional — `number/integer` types are auto-inferred):
+
+```json
+{
+  "count": { "ui:widget": "number" }
+}
+```
 
 ### List Widget (Single Select)
 

@@ -11,7 +11,7 @@
 
 本仓库负责：
 
-- MCP stdio server 工具注册与输入校验。
+- MCP **stdio** server 工具注册与输入校验（v1 不提供 HTTP/SSE 传输）。
 - v1 schema 常量。
 - README / research / plan 文档。
 - 契约级单元测试。
