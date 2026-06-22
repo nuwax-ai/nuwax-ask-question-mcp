@@ -153,6 +153,7 @@ server.registerTool(
 );
 
 async function main() {
+  // v1 仅支持 stdio：由 Cursor / Claude Desktop / nuwaclaw 等 Host 以子进程方式拉起
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
