@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ASK_TOOL_DESCRIPTION, handleAsk } from "./index.js";
+import { z } from "zod";
+import { ASK_TOOL_DESCRIPTION, askUserPayloadShape, handleAsk } from "./index.js";
 import {
   ASK_SCHEMA_VERSION,
   ASK_STATUS_PENDING,
@@ -144,5 +145,78 @@ describe("ASK_TOOL_DESCRIPTION", () => {
   it("包含 schema 设计规则", () => {
     expect(ASK_TOOL_DESCRIPTION).toContain("enumNames");
     expect(ASK_TOOL_DESCRIPTION).toContain("NEVER show bare values");
+  });
+});
+
+describe("askUserPayloadShape — agent 友好的版本默认值", () => {
+  // 复刻 SDK 对 raw shape 的处理：objectFromShape(shape) === z.object(shape)
+  const schema = z.object(askUserPayloadShape);
+
+  /** 构造 agent 实际可能发出的入参（故意不带任何 version 字段） */
+  function agentInput(overrides: Record<string, unknown> = {}) {
+    return {
+      schemaVersion: ASK_SCHEMA_VERSION,
+      requestId: "req-001",
+      revision: 1,
+      sessionId: "sess-001",
+      title: "Test Question",
+      ui: {
+        presentation: "inline" as const,
+        title: "Question Title",
+        schema: { type: "object", properties: {} },
+      },
+      ...overrides,
+    };
+  }
+
+  it("agent 漏写 ui.version 时自动补默认值（核心回归）", () => {
+    const result = schema.safeParse(agentInput());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as any).ui.version).toBe(INTERACTION_UI_SCHEMA_VERSION);
+    }
+  });
+
+  it("agent 漏写顶层 schemaVersion 时自动补默认值", () => {
+    const input = agentInput();
+    delete (input as Record<string, unknown>).schemaVersion;
+    const result = schema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as any).schemaVersion).toBe(ASK_SCHEMA_VERSION);
+    }
+  });
+
+  it("默认值不削弱 literal 校验：写错 ui.version 仍被拒绝", () => {
+    const result = schema.safeParse(
+      agentInput({
+        ui: {
+          version: "nuwaclaw.interaction.v1",
+          presentation: "inline" as const,
+          title: "Question Title",
+          schema: { type: "object", properties: {} },
+        },
+      }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("默认值不削弱 literal 校验：写错 schemaVersion 仍被拒绝", () => {
+    const result = schema.safeParse(agentInput({ schemaVersion: "wrong" }));
+    expect(result.success).toBe(false);
+  });
+
+  it("补齐后的入参能通过 handleAsk 的严格校验（端到端）", async () => {
+    const parsed = schema.safeParse(agentInput());
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+
+    const result = await handleAsk({
+      ...(parsed.data as any),
+      toolName: MCP_ASK_TOOL_NAME,
+    });
+    const sc = result.structuredContent as any;
+    expect(sc.status).toBe(ASK_STATUS_PENDING);
+    expect(sc.requestId).toBe("req-001");
   });
 });

@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.3.1 (2026-06-23)
+
+Fix:
+
+- Agents (LLMs) could not call `nuwax_ask_question`: calls failed with a Zod `invalid_literal` error on `ui.version` because the model often omits or mistypes the required magic-string version constants (`nuwax.interaction.v1` / `nuwax.mcp_ask.v1`). `schemaVersion` and `ui.version` are now optional with a server-applied default at the agent-facing input schema; the MCP SDK fills them in during `safeParse`, so `handleAsk`'s strict parse still passes. The canonical `McpAskUserToolInputSchema` (`types.ts`) and `schemas/schema.json` remain strict — the backend/DockPanel contract is unchanged.
+- Added 5 regression tests covering the omitted-version defaults and the still-rejected wrong-version cases.
+
 ## 3.0.1 (2026-06-02)
 
 Refactor:
