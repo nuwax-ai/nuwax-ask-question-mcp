@@ -179,13 +179,35 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
   "status": "pending",
   "requestId": "ask_123",
   "revision": 1,
-  "message": "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message."
+  "message": "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message.",
+  "input": {
+    "toolName": "nuwax_ask_question",
+    "schemaVersion": "nuwax.mcp_ask.v1",
+    "requestId": "ask_123",
+    "revision": 1,
+    "sessionId": "session_123",
+    "title": "Choose an option",
+    "ui": {
+      "version": "nuwax.interaction.v1",
+      "presentation": "inline",
+      "title": "Choose an option",
+      "schema": { "type": "object", "properties": {} }
+    }
+  }
 }
 ```
 
 - `status: "pending"` signals the agent that the question has been presented
+- **`input`** is the canonical normalized `rawInput` (includes `schemaVersion` and `toolName`). **Platforms must prefer `structuredContent.input` as SSE `result.input`**, not the agent's raw tool arguments (agents often omit version fields, which breaks DockPanel parsing)
 - This package does not maintain a pending request queue or wait for callbacks
 - The user's form answer is formatted by the client and sent as the next chat message
+
+Platforms may also call before persistence:
+
+```ts
+import { normalizeMcpAskUserToolInput } from "nuwax-ask-question-mcp/ask-user-payload";
+const rawInput = normalizeMcpAskUserToolInput(agentToolArguments);
+```
 
 ## JSON Schema Contract
 

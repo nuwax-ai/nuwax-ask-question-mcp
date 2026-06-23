@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.3.2 (2026-06-23)
+
+Fix:
+
+- Tool `structuredContent` now includes canonical `input` (`McpAskUserToolInput` with `schemaVersion`, `toolName`, and `ui.version` stamped). Platforms must prefer this field over the agent's raw tool arguments when publishing SSE `result.input`, otherwise Web/Mobile DockPanel cannot parse the ask card (missing `schemaVersion`).
+- Exported `normalizeMcpAskUserToolInput` from `nuwax-ask-question-mcp/ask-user-payload` for sandbox/agent-platform to normalize agent payloads before persistence.
+- Tool handler always runs `normalizeMcpAskUserToolInput` before `handleAsk`, ensuring internal and returned `input` are contract-complete.
+
 ## 3.3.1 (2026-06-23)
 
 Fix:

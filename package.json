@@ -1,6 +1,6 @@
 {
   "name": "nuwax-ask-question-mcp",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "description": "MCP ask/question server for Nuwax conversation interaction cards.",
   "type": "module",
   "bin": {
@@ -14,6 +14,7 @@
   ],
   "exports": {
     ".": "./dist/index.js",
+    "./ask-user-payload": "./dist/askUserPayload.js",
     "./build-raw-input": "./dist/buildRawInput.js",
     "./widgets": "./dist/widgets.js",
     "./schemas/schema.json": "./schemas/schema.json",

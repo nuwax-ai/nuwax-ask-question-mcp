@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ASK_TOOL_DESCRIPTION, askUserPayloadShape, handleAsk } from "./index.js";
+import {
+  askUserPayloadShape,
+  normalizeMcpAskUserToolInput,
+} from "./askUserPayload.js";
+import { ASK_TOOL_DESCRIPTION, handleAsk } from "./index.js";
 import {
   ASK_SCHEMA_VERSION,
   ASK_STATUS_PENDING,
@@ -41,7 +45,7 @@ describe("handleAsk", () => {
     expect(sc.message.length).toBeGreaterThan(0);
   });
 
-  it("structuredContent 包含正确字段", async () => {
+  it("structuredContent 包含规范化 input（DockPanel 契约）", async () => {
     const input = validInput();
     const result = await handleAsk(input as any);
     const sc = result.structuredContent as any;
@@ -50,7 +54,11 @@ describe("handleAsk", () => {
     expect(sc).toHaveProperty("requestId");
     expect(sc).toHaveProperty("revision");
     expect(sc).toHaveProperty("message");
-    expect(Object.keys(sc)).toHaveLength(4);
+    expect(sc).toHaveProperty("input");
+    expect(sc.input.schemaVersion).toBe(ASK_SCHEMA_VERSION);
+    expect(sc.input.toolName).toBe(MCP_ASK_TOOL_NAME);
+    expect(sc.input.ui.version).toBe(INTERACTION_UI_SCHEMA_VERSION);
+    expect(Object.keys(sc)).toHaveLength(5);
   });
 
   it("content[0].text 包含固定提示文本", async () => {
@@ -114,6 +122,51 @@ describe("handleAsk", () => {
     });
 
     await expect(handleAsk(input as any)).rejects.toThrow();
+  });
+});
+
+describe("normalizeMcpAskUserToolInput", () => {
+  it("agent 漏写 schemaVersion 时补齐完整 rawInput", () => {
+    const normalized = normalizeMcpAskUserToolInput({
+      requestId: "weather-plan-confirm",
+      revision: 1,
+      sessionId: "weather-dev",
+      title: "确认实现方案",
+      ui: {
+        version: INTERACTION_UI_SCHEMA_VERSION,
+        presentation: "modal",
+        title: "确认实现方案",
+        schema: {
+          type: "object",
+          properties: {
+            data_source: { type: "string", enum: ["851", "72"] },
+          },
+          required: ["data_source"],
+        },
+      },
+    });
+
+    expect(normalized.schemaVersion).toBe(ASK_SCHEMA_VERSION);
+    expect(normalized.toolName).toBe(MCP_ASK_TOOL_NAME);
+    expect(normalized.requestId).toBe("weather-plan-confirm");
+    expect(normalized.ui.version).toBe(INTERACTION_UI_SCHEMA_VERSION);
+  });
+
+  it("agent 漏写 ui.version 时补齐", () => {
+    const normalized = normalizeMcpAskUserToolInput({
+      schemaVersion: ASK_SCHEMA_VERSION,
+      requestId: "ask-1",
+      revision: 1,
+      sessionId: "sess-1",
+      title: "Choose",
+      ui: {
+        presentation: "inline",
+        title: "Pick one",
+        schema: { type: "object", properties: {} },
+      },
+    });
+
+    expect(normalized.ui.version).toBe(INTERACTION_UI_SCHEMA_VERSION);
   });
 });
 
@@ -218,5 +271,6 @@ describe("askUserPayloadShape — agent 友好的版本默认值", () => {
     const sc = result.structuredContent as any;
     expect(sc.status).toBe(ASK_STATUS_PENDING);
     expect(sc.requestId).toBe("req-001");
+    expect(sc.input.schemaVersion).toBe(ASK_SCHEMA_VERSION);
   });
 });

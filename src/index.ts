@@ -3,8 +3,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 import { createRequire } from "node:module";
+import {
+  askUserPayloadShape,
+  normalizeMcpAskUserToolInput,
+} from "./askUserPayload.js";
 import {
   ASK_SCHEMA_VERSION,
   ASK_STATUS_PENDING,
@@ -17,62 +20,7 @@ import {
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
-/**
- * ask 工具业务入参（不含 toolName）。
- * MCP 注册名为 nuwax_ask_question；写入 ACP rawInput 时固定 toolName。
- *
- * 版本字段（schemaVersion / ui.version）对 agent 不友好：要求 LLM 逐字复现
- * "nuwax.mcp_ask.v1" / "nuwax.interaction.v1" 这类魔法字符串，agent 常漏写或写错，
- * 导致 z.literal 直接报 invalid_literal、整次调用失败。
- * 这里给两个字段加 .default()：缺失时由 SDK 按协议常量补齐（safeParse 会应用默认值），
- * 仍保留 literal 校验拒绝错误值。不要改回严格必填——会让 agent 无法正常调用。
- * 仅放宽面向 agent 的这一层；types.ts 的 McpAskUserToolInputSchema 与 schemas/schema.json
- * 仍保持严格，后端/DockPanel 经 buildRawInput 盖戳 version，契约不变。
- */
-export const askUserPayloadShape = {
-  schemaVersion: z.literal(ASK_SCHEMA_VERSION).default(ASK_SCHEMA_VERSION),
-  requestId: z.string().min(1),
-  revision: z.number().int().positive(),
-  sessionId: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().optional(),
-  ui: z
-    .object({
-      version: z.literal(INTERACTION_UI_SCHEMA_VERSION).default(
-        INTERACTION_UI_SCHEMA_VERSION,
-      ),
-      presentation: z.enum(["modal", "inline", "wizard", "table"]),
-      title: z.string().min(1),
-      description: z.string().optional(),
-      schema: z.record(z.unknown()),
-      uiSchema: z.record(z.unknown()).optional(),
-      table: z.record(z.unknown()).optional(),
-      initialValue: z.record(z.unknown()).optional(),
-      steps: z
-        .array(
-          z.object({
-            id: z.string().min(1),
-            title: z.string().min(1),
-            description: z.string().optional(),
-            fields: z.array(z.string()),
-          }),
-        )
-        .optional(),
-      submitLabel: z.string().optional(),
-      cancelLabel: z.string().optional(),
-      fallback: z
-        .object({
-          text: z.string(),
-          webUrl: z.string().url().optional(),
-          mobileUrl: z.string().url().optional(),
-        })
-        .optional(),
-    })
-    .passthrough(),
-  business: z.record(z.unknown()).optional(),
-  timeoutMs: z.number().int().positive().optional(),
-  priority: z.enum(["normal", "high"]).optional(),
-};
+export { askUserPayloadShape, normalizeMcpAskUserToolInput } from "./askUserPayload.js";
 
 const server = new McpServer(
   {
@@ -114,6 +62,8 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
     revision: parsed.revision,
     message:
       "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message.",
+    /** 完整规范化 rawInput；平台应优先用此字段驱动 DockPanel，而非 agent 原始 tool 参数 */
+    input: parsed,
   };
   return {
     content: [
@@ -155,11 +105,8 @@ server.registerTool(
       openWorldHint: true,
     },
   },
-  async (input): Promise<CallToolResult> =>
-    handleAsk({
-      ...input,
-      toolName: MCP_ASK_TOOL_NAME,
-    } as McpAskUserToolInput),
+  async (rawInput): Promise<CallToolResult> =>
+    handleAsk(normalizeMcpAskUserToolInput(rawInput)),
 );
 
 async function main() {

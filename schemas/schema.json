@@ -789,7 +789,8 @@
         "status",
         "requestId",
         "revision",
-        "message"
+        "message",
+        "input"
       ],
       "properties": {
         "status": {
@@ -807,6 +808,10 @@
         },
         "message": {
           "type": "string"
+        },
+        "input": {
+          "$ref": "#/$defs/McpAskUserToolInput",
+          "description": "经 MCP Server 规范化后的完整 rawInput；平台应优先用此字段驱动 DockPanel，而非 agent 原始 tool 参数"
         }
       }
     },

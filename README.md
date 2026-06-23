@@ -176,13 +176,35 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
   "status": "pending",
   "requestId": "ask_123",
   "revision": 1,
-  "message": "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message."
+  "message": "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message.",
+  "input": {
+    "toolName": "nuwax_ask_question",
+    "schemaVersion": "nuwax.mcp_ask.v1",
+    "requestId": "ask_123",
+    "revision": 1,
+    "sessionId": "session_123",
+    "title": "请选择一个选项",
+    "ui": {
+      "version": "nuwax.interaction.v1",
+      "presentation": "inline",
+      "title": "请选择一个选项",
+      "schema": { "type": "object", "properties": {} }
+    }
+  }
 }
 ```
 
 - `status: "pending"` 是给 Agent 的信号，表示问题已展示给用户
+- **`input`** 是经 MCP Server 规范化后的完整 `rawInput`（含 `schemaVersion` / `toolName`）。**平台透传 SSE 时必须优先使用 `structuredContent.input` 作为 `result.input`**，不要直接落库 agent 原始 tool 参数（agent 常漏写 version 字段，会导致 DockPanel 不渲染）
 - 本包不维护待处理请求队列，也不等待回调
 - 用户的表单回答由客户端格式化后作为下一条聊天消息发送
+
+平台侧也可在持久化前调用：
+
+```ts
+import { normalizeMcpAskUserToolInput } from "nuwax-ask-question-mcp/ask-user-payload";
+const rawInput = normalizeMcpAskUserToolInput(agentToolArguments);
+```
 
 ## JSON Schema 契约
 
