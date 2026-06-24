@@ -1,55 +1,50 @@
 {
   "toolName": "nuwax_ask_question",
-  "schemaVersion": "nuwax.mcp_ask.v1",
+  "schemaVersion": "nuwax.mcp_ask.v2",
   "requestId": "ask_demo_001",
   "revision": 1,
   "sessionId": "session_demo",
   "title": "请确认继续方式",
   "description": "Agent 需要你的决定才能继续。",
   "ui": {
-    "version": "nuwax.interaction.v1",
+    "version": "nuwax.interaction.v2",
     "presentation": "inline",
     "title": "请确认继续方式",
-    "schema": {
-      "type": "object",
-      "required": ["choice", "remark", "checks", "count"],
-      "properties": {
-        "choice": {
-          "type": "string",
-          "title": "继续方式",
-          "enum": ["test", "deploy"],
-          "enumNames": ["先跑测试", "直接部署"]
-        },
-        "remark": {
-          "type": "string",
-          "title": "补充说明"
-        },
-        "checks": {
-          "type": "array",
-          "title": "检查项",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "enum": ["lint", "unit"]
-          }
-        },
-        "count": {
-          "type": "integer",
-          "title": "并发数",
-          "minimum": 1,
-          "maximum": 10
-        }
-      }
-    },
-    "uiSchema": {
-      "choice": { "ui:widget": "radio" },
-      "remark": { "ui:widget": "textarea" },
-      "checks": {
-        "ui:widget": "checkboxes",
-        "ui:options": { "enumNames": ["代码检查", "单元测试"] }
+    "fields": [
+      {
+        "name": "choice",
+        "title": "继续方式",
+        "widget": "radio",
+        "required": true,
+        "options": [
+          { "value": "test", "label": "先跑测试" },
+          { "value": "deploy", "label": "直接部署" }
+        ]
       },
-      "count": { "ui:widget": "number" }
-    },
+      {
+        "name": "remark",
+        "title": "补充说明",
+        "widget": "textarea"
+      },
+      {
+        "name": "checks",
+        "title": "检查项",
+        "widget": "checkboxes",
+        "type": "array",
+        "options": [
+          { "value": "lint", "label": "代码检查" },
+          { "value": "unit", "label": "单元测试" }
+        ]
+      },
+      {
+        "name": "count",
+        "title": "并发数",
+        "widget": "number",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10
+      }
+    ],
     "submitLabel": "提交",
     "cancelLabel": "取消"
   },

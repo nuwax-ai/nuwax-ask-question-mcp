@@ -4,7 +4,7 @@
 | --- | --- |
 | 日期 | 2026-05-29 |
 | 目标 | 将 `nuwax-ask-question-mcp` 的 v1 契约、文档和测试稳定下来，并给 Web/Mobile/Bridge 落地提供明确验收边界 |
-| 当前决策 | v1 仅使用最新 `nuwax.mcp_ask.v1` / `nuwax.interaction.v1`，不保留旧命名空间兼容 |
+| 当前决策 | 仅使用最新 `nuwax.mcp_ask.v2` / `nuwax.interaction.v2`（v2：表单为字段数组 `ui.fields`，无 schema/uiSchema/ui:order），不保留旧命名空间兼容 |
 | 实施状态 | `nuwax-intervention-ui` 的 `codex/acp-mode-intervention-ui` 与 `nuwax-mobile` 的 `feat/intervention-ui` 已接入；本计划保留合并前验收项 |
 
 ## 1. 范围

@@ -1,6 +1,6 @@
 {
   "name": "nuwax-ask-question-mcp",
-  "version": "3.3.2",
+  "version": "4.0.0",
   "description": "MCP ask/question server for Nuwax conversation interaction cards.",
   "type": "module",
   "bin": {
@@ -27,6 +27,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "generate:schema": "tsx scripts/generate-schema.ts",
+    "dump:input-schema": "tsx scripts/dump-input-schema.ts",
     "test": "vitest run && node scripts/verify-widget-contract.mjs",
     "test:watch": "vitest",
     "verify:widgets": "node scripts/verify-widget-contract.mjs",

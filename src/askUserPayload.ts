@@ -4,65 +4,58 @@ import {
   INTERACTION_UI_SCHEMA_VERSION,
   MCP_ASK_TOOL_NAME,
   McpAskUserToolInputSchema,
+  InteractionUiSchema,
   type McpAskUserToolInput,
 } from "./types.js";
 
 /**
- * ask 工具业务入参（不含 toolName）。
- * MCP 注册名为 nuwax_ask_question；写入 ACP rawInput 时固定 toolName。
+ * ask 工具业务入参（不含 toolName）——面向 agent 的友好层。
  *
- * 版本字段（schemaVersion / ui.version）对 agent 不友好：要求 LLM 逐字复现
- * "nuwax.mcp_ask.v1" / "nuwax.interaction.v1" 这类魔法字符串，agent 常漏写或写错，
- * 导致 z.literal 直接报 invalid_literal、整次调用失败。
- * 这里给两个字段加 .default()：缺失时由 SDK 按协议常量补齐（safeParse 会应用默认值），
- * 仍保留 literal 校验拒绝错误值。不要改回严格必填——会让 agent 无法正常调用。
- * 仅放宽面向 agent 的这一层；types.ts 的 McpAskUserToolInputSchema 与 schemas/schema.json
- * 仍保持严格，后端/DockPanel 经 normalizeMcpAskUserToolInput / buildRawInput 盖戳 version，契约不变。
+ * 【单一真相源，避免与 types.ts 重复】这里不再重声明字段结构与描述，而是直接【复用】
+ * types.ts 的 McpAskUserToolInputSchema / InteractionUiSchema（结构与 .describe() 全部来自那里），
+ * 仅对 version 字段叠加 .default() + 「请勿输出」标注：
+ *
+ * - version 字段（schemaVersion / ui.version）要求 LLM 逐字复现魔法字符串，agent 常漏写或写错，
+ *   导致 z.literal 报 invalid_literal、整次调用失败。给它们 .default()：缺失时由 SDK 按协议
+ *   常量补齐（safeParse 会应用默认值），仍保留 literal 校验拒绝错误值。revision 默认 1。
+ *
+ * 仅放宽面向 agent 的这一层；types.ts 的 McpAskUserToolInputSchema 与 schemas/schema.json 保持严格，
+ * 后端/DockPanel 经 normalizeMcpAskUserToolInput / buildRawInput 盖戳 version，契约不变。
  */
-export const askUserPayloadShape = {
-  schemaVersion: z.literal(ASK_SCHEMA_VERSION).default(ASK_SCHEMA_VERSION),
-  requestId: z.string().min(1),
-  revision: z.number().int().positive(),
-  sessionId: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().optional(),
-  ui: z
-    .object({
-      version: z.literal(INTERACTION_UI_SCHEMA_VERSION).default(
-        INTERACTION_UI_SCHEMA_VERSION,
-      ),
-      presentation: z.enum(["modal", "inline", "wizard", "table"]),
-      title: z.string().min(1),
-      description: z.string().optional(),
-      schema: z.record(z.unknown()),
-      uiSchema: z.record(z.unknown()).optional(),
-      table: z.record(z.unknown()).optional(),
-      initialValue: z.record(z.unknown()).optional(),
-      steps: z
-        .array(
-          z.object({
-            id: z.string().min(1),
-            title: z.string().min(1),
-            description: z.string().optional(),
-            fields: z.array(z.string()),
-          }),
-        )
-        .optional(),
-      submitLabel: z.string().optional(),
-      cancelLabel: z.string().optional(),
-      fallback: z
-        .object({
-          text: z.string(),
-          webUrl: z.string().url().optional(),
-          mobileUrl: z.string().url().optional(),
-        })
-        .optional(),
-    })
-    .passthrough(),
-  business: z.record(z.unknown()).optional(),
-  timeoutMs: z.number().int().positive().optional(),
-  priority: z.enum(["normal", "high"]).optional(),
-};
+
+/** agent-facing ui：复用 InteractionUiSchema 结构与描述，仅 version 加 default + 「请勿输出」 */
+const agentInteractionUiSchema = InteractionUiSchema.extend({
+  version: z
+    .literal(INTERACTION_UI_SCHEMA_VERSION)
+    .default(INTERACTION_UI_SCHEMA_VERSION)
+    .describe(
+      `【请勿输出本字段】UI 契约版本，由服务端自动盖戳为 ${INTERACTION_UI_SCHEMA_VERSION}。省略即可。`,
+    ),
+}).passthrough();
+
+/**
+ * agent-facing 入参：复用 McpAskUserToolInputSchema 结构与描述（去 toolName），仅 version 字段加 default。
+ * 注意：不要在此加顶层 .passthrough()——askUserPayloadShape 取的是 .shape（字段 Record），
+ * SDK 与 normalize 都会以 z.object(shape) 重新编译为 strip 模式，passthrough 无法传递，属死代码。
+ */
+const agentInputSchema = McpAskUserToolInputSchema.omit({ toolName: true }).extend({
+  schemaVersion: z
+    .literal(ASK_SCHEMA_VERSION)
+    .default(ASK_SCHEMA_VERSION)
+    .describe(
+      `【请勿输出本字段】MCP 契约版本，由服务端自动盖戳为 ${ASK_SCHEMA_VERSION}。省略即可。`,
+    ),
+  revision: z
+    .number()
+    .int()
+    .positive()
+    .default(1)
+    .describe("提问修订号，从 1 开始；后续修订递增。新提问省略即可（默认 1）。"),
+  ui: agentInteractionUiSchema,
+});
+
+/** 注册工具用的 raw shape（MCP SDK 以 z.object(shape) 编译为 inputSchema） */
+export const askUserPayloadShape = agentInputSchema.shape;
 
 const agentPayloadSchema = z.object(askUserPayloadShape);
 

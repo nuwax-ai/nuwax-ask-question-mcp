@@ -9,7 +9,7 @@ import {
   McpAskUserToolInputSchema,
   MCP_SERVER_TRANSPORT,
 } from "../src/types.js";
-import { MCP_ASK_WIDGET_TYPES, WIDGET_CATALOG } from "../src/widgets.js";
+import { MCP_ASK_WIDGET_TYPES } from "../src/widgets.js";
 
 const schemasDir = dirname(fileURLToPath(import.meta.url));
 const schemaPath = join(schemasDir, "schema.json");
@@ -55,19 +55,43 @@ describe("schemas/schema.json", () => {
     expect(widgetType.enum).toEqual([...MCP_ASK_WIDGET_TYPES]);
   });
 
-  it("WidgetCatalog 与 src/widgets.ts 一致", () => {
+  it("WidgetCatalog 仅含结构定义（无实例 default），items 引用 WidgetCatalogEntry", () => {
     const catalog = schemaDoc.$defs.WidgetCatalog as {
-      default: typeof WIDGET_CATALOG;
+      type: string;
+      items: { $ref: string };
+      default?: unknown;
     };
-    expect(catalog.default).toEqual(WIDGET_CATALOG);
+    expect(catalog.type).toBe("array");
+    expect(catalog.items).toEqual({ $ref: "#/$defs/WidgetCatalogEntry" });
+    expect(catalog.default).toBeUndefined();
   });
 
-  it("textarea 不可自动推断 widget", () => {
-    const catalog = schemaDoc.$defs.WidgetCatalog as {
-      default: Array<{ type: string; autoInfer: boolean }>;
+  it("字段模型内联自包含（无 $ref）：NuwaxAskQuestionInput.ui.fields.items 含 widget 枚举与 options", () => {
+    const nuwaxInput = schemaDoc.$defs.NuwaxAskQuestionInput as {
+      properties: {
+        ui: {
+          properties: {
+            fields: {
+              items: {
+                required: string[];
+                properties: {
+                  widget: { enum: string[] };
+                  options: { items: { properties: { value: unknown } } };
+                };
+              };
+            };
+          };
+        };
+      };
     };
-    const textarea = catalog.default.find((item) => item.type === "textarea");
-    expect(textarea?.autoInfer).toBe(false);
+    const fieldItem = nuwaxInput.properties.ui.properties.fields.items;
+    expect(fieldItem.required).toEqual(["name", "title", "widget"]);
+    expect(fieldItem.properties.widget.enum).toEqual([...MCP_ASK_WIDGET_TYPES]);
+    expect(fieldItem.properties.options.items.properties.value).toBeDefined();
+    // 字段模型内联，无 $ref
+    expect(JSON.stringify(fieldItem)).not.toContain('"$ref"');
+    expect(schemaDoc.$defs.FormField).toBeUndefined();
+    expect(schemaDoc.$defs.FieldOption).toBeUndefined();
   });
 
   it("废弃别名映射 input→text、checkbox→checkboxes", () => {
@@ -77,6 +101,11 @@ describe("schemas/schema.json", () => {
     expect(aliases.properties.input.const).toBe("text");
     expect(aliases.properties.checkbox.const).toBe("checkboxes");
   });
+
+  it("schema.json 聚焦格式定义：无顶层 examples、无 CompleteFormExampleRef", () => {
+    expect(schemaDoc.examples).toBeUndefined();
+    expect(schemaDoc.$defs.CompleteFormExampleRef).toBeUndefined();
+  });
 });
 
 describe("schemas/examples/complete-form.json", () => {
@@ -85,10 +114,17 @@ describe("schemas/examples/complete-form.json", () => {
     expect(result.success).toBe(true);
   });
 
+  it("使用 v2 字段数组 fields[]", () => {
+    expect(completeFormExample.ui).not.toHaveProperty("schema");
+    expect(completeFormExample.ui).not.toHaveProperty("uiSchema");
+    expect(Array.isArray(completeFormExample.ui.fields)).toBe(true);
+  });
+
   it("包含 number 字段示例", () => {
-    expect(completeFormExample.ui.uiSchema.count).toEqual({
-      "ui:widget": "number",
-    });
-    expect(completeFormExample.ui.schema.properties.count.type).toBe("integer");
+    const count = completeFormExample.ui.fields.find(
+      (f: { name: string }) => f.name === "count",
+    );
+    expect(count.widget).toBe("number");
+    expect(count.type).toBe("integer");
   });
 });

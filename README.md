@@ -29,7 +29,7 @@ Nuwax 交互式问答 MCP 服务器——用于 Agent 向用户提问并收集�
 
 1. Agent 调用 MCP 工具 `nuwax_ask_question`
 2. 工具立即返回 `status: "pending"`，Agent 停止当前轮次
-3. 客户端（Web/Mobile）根据 UI Schema 渲染交互表单
+3. 客户端（Web/Mobile）根据 `ui.fields` 渲染交互表单
 4. 用户提交表单后，回答作为普通聊天消息发回，开启 Agent 下一轮
 
 > **注意：** 本工具仅处理问答交互。ACP 权限审批走独立的传输协议（`acpRequestPermission`），不经过此 MCP 工具。
@@ -106,30 +106,31 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 
 ## 工具入参
 
+> v2：表单以 `ui.fields`（有序字段数组）表达，**无需 `schema` / `uiSchema` / `ui:order`**。版本字段（`schemaVersion`、`ui.version`）由服务端自动盖戳，**Agent 可省略**。
+
 ```json
 {
-  "schemaVersion": "nuwax.mcp_ask.v1",
   "requestId": "ask_123",
   "revision": 1,
   "sessionId": "session_123",
   "title": "请选择一个选项",
   "description": "Agent 需要你的决定才能继续。",
   "ui": {
-    "version": "nuwax.interaction.v1",
     "presentation": "inline",
     "title": "请选择一个选项",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "choice": {
-          "type": "string",
-          "title": "选项",
-          "enum": ["a", "b"],
-          "enumNames": ["选项A", "选项B"]
-        }
-      },
-      "required": ["choice"]
-    },
+    "fields": [
+      {
+        "name": "choice",
+        "title": "选项",
+        "widget": "radio",
+        "required": true,
+        "initialValue": "a",
+        "options": [
+          { "value": "a", "label": "选项A" },
+          { "value": "b", "label": "选项B" }
+        ]
+      }
+    ],
     "submitLabel": "提交",
     "cancelLabel": "取消"
   },
@@ -137,13 +138,13 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 }
 ```
 
-### 字段说明
+### 顶层字段说明
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `schemaVersion` | string | ✅ | 固定值 `"nuwax.mcp_ask.v1"` |
-| `requestId` | string | ✅ | 请求唯一标识 |
-| `revision` | number | ✅ | 正整数，版本号 |
+| `schemaVersion` | string | （省略） | 固定 `"nuwax.mcp_ask.v2"`，服务端自动盖戳，Agent 无需输出 |
+| `requestId` | string | ✅ | 请求唯一标识（Agent 生成稳定 id） |
+| `revision` | number | ✅ | 正整数版本号；新提问省略时默认 `1` |
 | `sessionId` | string | ✅ | 会话 ID |
 | `title` | string | ✅ | 问题标题 |
 | `description` | string | | 问题描述 |
@@ -152,22 +153,39 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 | `timeoutMs` | number | | 超时时间（毫秒） |
 | `priority` | `"normal" \| "high"` | | 优先级 |
 
-### UI Schema 字段
+### UI 字段说明
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `version` | string | ✅ | 固定值 `"nuwax.interaction.v1"` |
-| `presentation` | string | ✅ | 展示方式：`modal` / `inline` / `wizard` / `table` |
+| `version` | string | （省略） | 固定 `"nuwax.interaction.v2"`，服务端自动盖戳 |
+| `presentation` | string | ✅ | 展示方式：`modal` / `inline` / `wizard` |
 | `title` | string | ✅ | 表单标题 |
 | `description` | string | | 表单描述 |
-| `schema` | object | ✅ | JSON Schema，定义表单字段 |
-| `uiSchema` | object | | UI 增强配置（控件类型、选项等） |
-| `table` | object | | 表格展示配置 |
-| `initialValue` | object | | 表单初始值 |
-| `steps` | array | | 向导步骤（wizard 模式） |
+| `fields` | array | ✅* | 表单字段（有序数组，见下方）；inline/modal/wizard 必填 |
+| `steps` | array | | 向导步骤（wizard 模式，`fields` 为字段 name 数组） |
 | `submitLabel` | string | | 提交按钮文案 |
 | `cancelLabel` | string | | 取消按钮文案 |
 | `fallback` | object | | 降级方案：`text` + 可选 `webUrl` / `mobileUrl` |
+
+### `fields[]` 字段定义（对齐 antd Form.Item）
+
+每个字段对象自描述控件、选项、约束、初始值。字段与 [Ant Design Form](https://ant.design/components/form) 的映射：`name`→`Form.Item.name`、`title`→`label`、`description`→`tooltip/help`、`required`+约束→`rules`、`placeholder`→控件 placeholder、`initialValue`→`Form.Item.initialValue`、`options`→`Radio.Group/Select/Checkbox.Group`。
+
+| 字段属性 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `name` | string | ✅ | formData 的 key，全表单唯一 |
+| `title` | string | ✅ | 展示标签（antd label） |
+| `widget` | string | ✅ | 控件类型（见控件目录） |
+| `description` | string | | 字段帮助文案（tooltip） |
+| `required` | boolean | | 是否必填，默认 false |
+| `placeholder` | string | | 占位提示 |
+| `initialValue` | any | | 字段初始值（旧 `ui.initialValue[name]` 下沉到字段） |
+| `type` | string | | 值类型 `string`/`integer`/`number`/`array`，缺省按 widget 推断 |
+| `options` | array | | 选择类控件选项：`[{value, label}]`（合并旧 `enum`+`enumNames`） |
+| `minimum`/`maximum`/`multipleOf` | number | | 数值约束（widget=number） |
+| `minLength`/`maxLength`/`pattern` | | | 文本约束（widget=text/textarea） |
+| `accept`/`multiple`/`maxFileSize` | | | 文件控件配置（widget=file） |
+| `allowCustom`/`otherValue`/`otherField` | | | radio-with-custom 配置 |
 
 ## 工具返回
 
@@ -179,23 +197,23 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
   "message": "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message.",
   "input": {
     "toolName": "nuwax_ask_question",
-    "schemaVersion": "nuwax.mcp_ask.v1",
+    "schemaVersion": "nuwax.mcp_ask.v2",
     "requestId": "ask_123",
     "revision": 1,
     "sessionId": "session_123",
     "title": "请选择一个选项",
     "ui": {
-      "version": "nuwax.interaction.v1",
+      "version": "nuwax.interaction.v2",
       "presentation": "inline",
       "title": "请选择一个选项",
-      "schema": { "type": "object", "properties": {} }
+      "fields": [ /* ... */ ]
     }
   }
 }
 ```
 
 - `status: "pending"` 是给 Agent 的信号，表示问题已展示给用户
-- **`input`** 是经 MCP Server 规范化后的完整 `rawInput`（含 `schemaVersion` / `toolName`）。**平台透传 SSE 时必须优先使用 `structuredContent.input` 作为 `result.input`**，不要直接落库 agent 原始 tool 参数（agent 常漏写 version 字段，会导致 DockPanel 不渲染）
+- **`input`** 是经 MCP Server 规范化后的完整 `rawInput`（含 `schemaVersion` / `toolName` / `ui.version`）。**平台透传 SSE 时必须优先使用 `structuredContent.input` 作为 `result.input`**，不要直接落库 agent 原始 tool 参数（agent 常漏写 version 字段，会导致 DockPanel 不渲染）
 - 本包不维护待处理请求队列，也不等待回调
 - 用户的表单回答由客户端格式化后作为下一条聊天消息发送
 
@@ -225,21 +243,21 @@ import schema from 'nuwax-ask-question-mcp/schemas/schema.json' assert { type: '
 const schema = require('nuwax-ask-question-mcp/schemas/schema.json');
 ```
 
-`schema.json` 的 `x-nuwax.widgetCatalog` 列出全部控件类型；`field.type` 与 `ui:widget` 使用相同命名（RJSF 对齐）：
+`schema.json` 的 `x-nuwax.widgetCatalog` 列出全部控件类型；每个字段通过 `widget` 指定控件：
 
-| `ui:widget` | 说明 | 自动推断 |
-|---|---|---|
-| `text` | 单行文本 | ✅ `type: string` |
-| `textarea` | 多行文本 | ❌ 需显式指定 |
-| `number` | 数字 | ✅ `type: number/integer` |
-| `radio` | 单选 | ✅ 有 `enum` |
-| `checkboxes` | 多选 | ✅ `array` + `items.enum` |
-| `select` | 下拉单选 | ❌ |
-| `list` | 列表单选 | ❌ |
-| `file` | 文件上传 | ❌ 需 `format: data-url` |
-| `radio-with-custom` | 单选 + 自定义输入 | ❌ 需 `ui:options.allowCustom: true` |
+| `widget` | 说明 | antd 控件 | 自动推断 |
+|---|---|---|---|
+| `text` | 单行文本 | `Input` | ✅ `type: string` |
+| `textarea` | 多行文本 | `Input.TextArea` | ❌ 需显式指定 |
+| `number` | 数字 | `InputNumber` | ✅ `type: number/integer` |
+| `radio` | 单选 | `Radio.Group` | ✅ 有 `options` |
+| `checkboxes` | 多选 | `Checkbox.Group` | ✅ `type: array` + `options` |
+| `select` | 下拉单选 | `Select` | ❌ |
+| `list` | 列表单选 | `Radio.Group`（竖排） | ❌ |
+| `file` | 文件上传 | `Upload` | ❌ |
+| `radio-with-custom` | 单选 + 自定义输入 | `Radio.Group` + 输入框 | ❌ 需 `allowCustom: true` |
 
-废弃别名：`input` → `text`，`checkbox` → `checkboxes`。
+> v2 推荐 `widget` 必填，消除推断歧义。废弃别名：`input` → `text`，`checkbox` → `checkboxes`。
 
 ### Builder SDK（生成 rawInput）
 
@@ -259,6 +277,7 @@ const rawInput = buildMcpAskRawInput({
       type: 'radio', // 也支持废弃别名 input / checkbox
       label: '选项',
       required: true,
+      initialValue: 'test',
       options: [
         { value: 'test', label: '先跑测试' },
         { value: 'deploy', label: '直接部署' },
@@ -276,97 +295,74 @@ const rawInput = buildMcpAskRawInput({
 npm run generate:schema   # 从 Zod + widgets.ts 更新 schemas/schema.json
 ```
 
-## 控件扩展
+## 控件示例（fields[]）
 
-### 重要：单选/多选控件必须展示选项文案
+### 单选 / 多选：必须展示选项文案
 
-**单选（radio）和多选（checkbox）控件必须为每个选项提供人类可读的标签（label），不能只显示裸值。**
+选择类控件（radio/checkboxes/select/list/radio-with-custom）通过 `options: [{value, label}]` 提供选项，**必须给 `label`（人类可读），不要给裸 value**。
 
-- 使用 `enumNames` 或 `uiSchema` 的 `enumLabels` 为选项提供清晰的描述
-- 选项标签应让用户明确知道每个选项的含义
-- 错误示例：`enum: ["yes", "no"]`（用户不知道 yes/no 代表什么）
-- 正确示例：`enum: ["yes", "no"]` + `enumNames: ["是，我同意", "否，我拒绝"]`
+```json
+[
+  {
+    "name": "agree",
+    "title": "是否同意",
+    "widget": "radio",
+    "required": true,
+    "options": [
+      { "value": "yes", "label": "是，我同意" },
+      { "value": "no", "label": "否，我拒绝" }
+    ]
+  }
+]
+```
 
-### 文件上传控件
-
-当 schema 字段使用以下配置时，客户端渲染文件上传控件：
+### 文件上传
 
 ```json
 {
-  "screenshot": {
-    "type": "string",
-    "format": "data-url",
-    "title": "截图"
-  }
+  "name": "screenshot",
+  "title": "截图",
+  "widget": "file",
+  "accept": "image/*",
+  "multiple": false,
+  "maxFileSize": 10485760
 }
 ```
-
-通过 `uiSchema` 指定控件类型和选项：
-
-```json
-{
-  "screenshot": {
-    "ui:widget": "file",
-    "ui:options": {
-      "accept": "image/*",
-      "multiple": false,
-      "maxFileSize": 10485760
-    }
-  }
-}
-```
-
-`ui:options` 支持：
 
 | 选项 | 类型 | 说明 |
 |---|---|---|
-| `accept` | string | MIME 类型过滤器，如 `"image/*"`、`"application/pdf"` |
-| `multiple` | boolean | 是否允许多文件选择 |
-| `maxFileSize` | number | 单文件最大大小（字节） |
+| `accept` | string | MIME 过滤器，如 `"image/*"`、`"application/pdf"` |
+| `multiple` | boolean | 是否允许多文件 |
+| `maxFileSize` | number | 单文件最大字节 |
 
-### 数字控件
-
-当 schema 字段使用 `type: "number"` 或 `type: "integer"` 时，客户端渲染数字输入框：
+### 数字
 
 ```json
 {
-  "count": {
-    "type": "integer",
-    "title": "并发数",
-    "minimum": 1,
-    "maximum": 10
-  }
+  "name": "count",
+  "title": "并发数",
+  "widget": "number",
+  "type": "integer",
+  "initialValue": 1,
+  "minimum": 1,
+  "maximum": 10
 }
 ```
 
-通过 `uiSchema` 显式指定（可省略，`number/integer` 会自动推断）：
+### 列表单选
+
+适用于选项较多的单选，渲染为竖排列表：
 
 ```json
 {
-  "count": { "ui:widget": "number" }
-}
-```
-
-### 列表控件（单选）
-
-适用于选项较多的单选场景，渲染为垂直列表（Radio 风格）：
-
-```json
-{
-  "framework": {
-    "type": "string",
-    "title": "前端框架",
-    "enum": ["react", "vue", "angular", "svelte", "solid"],
-    "enumNames": ["React", "Vue", "Angular", "Svelte", "SolidJS"]
-  }
-}
-```
-
-通过 `uiSchema` 指定列表控件：
-
-```json
-{
-  "framework": { "ui:widget": "list" }
+  "name": "framework",
+  "title": "前端框架",
+  "widget": "list",
+  "options": [
+    { "value": "react", "label": "React" },
+    { "value": "vue", "label": "Vue" },
+    { "value": "angular", "label": "Angular" }
+  ]
 }
 ```
 
@@ -384,8 +380,8 @@ npm run generate:schema   # 从 Zod + widgets.ts 更新 schemas/schema.json
 格式化规则：
 
 - `{title}` 取 MCP 输入的 `title`，回退使用 `ui.title`
-- 字段标签取 JSON Schema 中的 `properties[field].title`，缺省时使用字段名
-- 枚举值优先使用 `uiSchema[field]["ui:options"].enumNames` 中的展示名
+- 字段标签取 `ui.fields` 中对应字段的 `title`，缺省时使用字段 `name`
+- 选择类展示值优先使用 `options` 中匹配 `value` 的 `label`
 - 数组值用 `、` 连接
 - 布尔值渲染为 `是` / `否`
 - 空值渲染为 `未填写`
@@ -425,8 +421,8 @@ npm run dev          # 开发模式运行
 通过 Git tag 触发自动发布到 npm：
 
 ```bash
-git tag v1.x.x
-git push origin v1.x.x
+git tag v4.x.x
+git push origin v4.x.x
 ```
 
 ## License

@@ -7,7 +7,7 @@ import {
   INTERACTION_UI_SCHEMA_VERSION,
 } from "./types.js";
 
-/** 构造合法输入的工厂函数 */
+/** 构造合法输入的工厂函数（v2：表单用 fields[]，最小 ui 无需 fields） */
 function validInput(overrides = {}) {
   return {
     toolName: MCP_ASK_TOOL_NAME,
@@ -20,7 +20,6 @@ function validInput(overrides = {}) {
       version: INTERACTION_UI_SCHEMA_VERSION,
       presentation: "inline" as const,
       title: "Question Title",
-      schema: { type: "object", properties: {} },
     },
     ...overrides,
   };
@@ -32,7 +31,6 @@ function validUi(overrides = {}) {
     version: INTERACTION_UI_SCHEMA_VERSION as const,
     presentation: "inline" as const,
     title: "Question Title",
-    schema: { type: "object", properties: {} },
     ...overrides,
   };
 }
@@ -153,19 +151,26 @@ describe("McpAskUserToolInputSchema", () => {
 // InteractionUiSchema
 // ---------------------------------------------------------------------------
 describe("InteractionUiSchema", () => {
-  it("接受 4 种 presentation", () => {
-    const presentations = ["modal", "inline", "wizard", "table"] as const;
+  it("接受 3 种 presentation", () => {
+    const presentations = ["modal", "inline", "wizard"] as const;
     for (const presentation of presentations) {
       const result = InteractionUiSchema.safeParse(validUi({ presentation }));
       expect(result.success).toBe(true);
     }
   });
 
-  it("仅接受最新 ui.version", () => {
+  it("仅接受最新 ui.version (v2)", () => {
     const result = InteractionUiSchema.safeParse(
       validUi({ version: INTERACTION_UI_SCHEMA_VERSION }),
     );
     expect(result.success).toBe(true);
+  });
+
+  it("拒绝旧 v1 ui.version", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({ version: "nuwax.interaction.v1" }),
+    );
+    expect(result.success).toBe(false);
   });
 
   it("拒绝旧 nuwaclaw ui.version", () => {
@@ -180,6 +185,35 @@ describe("InteractionUiSchema", () => {
       validUi({ customField: "allowed" }),
     );
     expect(result.success).toBe(true);
+  });
+
+  it("接受 fields 字段数组", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({
+        fields: [
+          { name: "choice", title: "选项", widget: "radio", required: true, options: [
+            { value: "a", label: "A" },
+            { value: "b", label: "B" },
+          ] },
+          { name: "remark", title: "备注", widget: "textarea" },
+        ],
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("拒绝 fields 中缺少必填 name/title/widget", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({ fields: [{ name: "a", title: "A" }] }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("拒绝 fields 中无效 widget", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({ fields: [{ name: "a", title: "A", widget: "dropdown" }] }),
+    );
+    expect(result.success).toBe(false);
   });
 
   it("接受 steps 数组", () => {
@@ -252,9 +286,7 @@ describe("InteractionUiSchema", () => {
     const result = InteractionUiSchema.safeParse(
       validUi({
         description: "UI description",
-        uiSchema: { "ui:order": ["a", "b"] },
-        table: { columns: [] },
-        initialValue: { name: "default" },
+        fields: [{ name: "a", title: "A", widget: "text", initialValue: "default" }],
         submitLabel: "Submit",
         cancelLabel: "Cancel",
       }),
@@ -274,49 +306,29 @@ describe("InteractionUiSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("接受包含文件上传 widget 的 schema", () => {
+  it("接受包含文件上传 widget 的 fields", () => {
     const result = InteractionUiSchema.safeParse(
       validUi({
-        schema: {
-          type: "object",
-          properties: {
-            screenshot: {
-              type: "string",
-              format: "data-url",
-              title: "截图",
-            },
-            documents: {
-              type: "array",
-              title: "相关文件",
-              items: { type: "string", format: "data-url" },
-            },
-          },
-        },
-        uiSchema: {
-          screenshot: { "ui:widget": "file", "ui:options": { accept: "image/*" } },
-          documents: { "ui:widget": "file", "ui:options": { multiple: true } },
-        },
+        fields: [
+          { name: "screenshot", title: "截图", widget: "file", accept: "image/*" },
+          { name: "documents", title: "相关文件", widget: "file", multiple: true },
+        ],
       }),
     );
     expect(result.success).toBe(true);
   });
 
-  it("接受包含单选列表 widget 的 schema", () => {
+  it("接受包含单选列表 widget 的 fields", () => {
     const result = InteractionUiSchema.safeParse(
       validUi({
-        schema: {
-          type: "object",
-          properties: {
-            framework: {
-              type: "string",
-              title: "前端框架",
-              enum: ["react", "vue", "angular", "svelte"],
-            },
-          },
-        },
-        uiSchema: {
-          framework: { "ui:widget": "list" },
-        },
+        fields: [
+          { name: "framework", title: "前端框架", widget: "list", options: [
+            { value: "react", label: "React" },
+            { value: "vue", label: "Vue" },
+            { value: "angular", label: "Angular" },
+            { value: "svelte", label: "Svelte" },
+          ] },
+        ],
       }),
     );
     expect(result.success).toBe(true);

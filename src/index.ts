@@ -44,10 +44,11 @@ const server = new McpServer(
       "After calling: STOP generating. The user's response will arrive as a new message in the next turn.",
       "",
       "Schema design rules:",
-      "- Use clear, concise field titles that explain what's being asked",
-      "- For choices: use enum + enumNames (or uiSchema enumLabels) to provide human-readable labels",
-      "- NEVER show bare enum values without descriptions (e.g., use 'Yes, I agree' not just 'yes')",
-      "- Mark required fields explicitly in the schema",
+      "- Define the form in ui.fields: an ordered array of self-describing field objects (array order = display order)",
+      "- Each field needs name, title, widget; use options: [{value, label}] for choices (radio/select/list/checkboxes/radio-with-custom)",
+      "- NEVER show bare values without labels (e.g., use 'Yes, I agree' not just 'yes')",
+      "- Mark required fields with required: true on the field",
+      "- Omit version fields (schemaVersion, ui.version) — the server fills them automatically",
       "",
       "This is your primary way to interact with the user for information gathering. Prefer it over guessing.",
     ].join("\n"),
@@ -77,8 +78,48 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 }
 
 /**
- * MCP 工具描述。模板化后跟随 constants 漂移，避免与 types.ts 中
- * MCP_ASK_TOOL_NAME / INTERACTION_UI_SCHEMA_VERSION / ASK_STATUS_PENDING 失同步。
+ * Agent 工具描述用简短示例：v2 字段数组形态（radio + textarea）。
+ * 与 askUserPayloadShape 对齐（不含 toolName）；版本常量与 types.ts 同步。
+ */
+export const ASK_TOOL_EXAMPLE_PAYLOAD = {
+  schemaVersion: ASK_SCHEMA_VERSION,
+  requestId: "ask_1",
+  revision: 1,
+  sessionId: "sess_1",
+  title: "请选择继续方式",
+  description: "Agent 需要你的决定才能继续。",
+  ui: {
+    version: INTERACTION_UI_SCHEMA_VERSION,
+    presentation: "inline" as const,
+    title: "请选择继续方式",
+    fields: [
+      {
+        name: "choice",
+        title: "继续方式",
+        widget: "radio",
+        required: true,
+        initialValue: "test",
+        options: [
+          { value: "test", label: "先跑测试" },
+          { value: "deploy", label: "直接部署" },
+        ],
+      },
+      {
+        name: "remark",
+        title: "补充说明",
+        widget: "textarea",
+        placeholder: "可选补充说明",
+      },
+    ],
+    submitLabel: "提交",
+    cancelLabel: "取消",
+  },
+};
+
+/**
+ * MCP 工具描述（工具级散文）。结构指引已下沉到 inputSchema 字段级 .describe()，
+ * 这里只保留「何时调用 / 勿问机密 / 返回 pending 后停止」等工具级要点 + 一个示例。
+ * 模板化后跟随 constants 漂移，避免与 types.ts 中常量失同步。
  */
 export const ASK_TOOL_DESCRIPTION = [
   `Present an interactive form card to the user and wait for their response. Use ${MCP_ASK_TOOL_NAME} when you need user input, preferences, decisions, choices, confirmations, or structured data.`,
@@ -86,11 +127,11 @@ export const ASK_TOOL_DESCRIPTION = [
   "ALWAYS use this tool instead of guessing, assuming, or asking in plain text.",
   "DO NOT ask for secrets (passwords, API keys, tokens).",
   "",
-  `Provide a ${INTERACTION_UI_SCHEMA_VERSION} UI schema in the ui field. Returns status "${ASK_STATUS_PENDING}" immediately; the user's answer arrives as a subsequent chat message.`,
+  `Returns status "${ASK_STATUS_PENDING}" immediately; the user's answer arrives as a subsequent chat message. STOP generating after calling.`,
   "",
-  "Schema rules: Use enum + enumNames for choices. NEVER show bare values without labels.",
+  "Form structure: define fields in ui.fields — an ordered array of self-describing field objects (array order = display order). Each field needs name + title + widget; for choices use options: [{value, label}] with human-readable labels — NEVER show bare values without labels (e.g., 'Yes, I agree' not just 'yes'). Version fields (schemaVersion, ui.version) are auto-filled — omit them. Full field rules live in the input schema descriptions below.",
   "",
-  `Example: {"schemaVersion":"${ASK_SCHEMA_VERSION}","requestId":"ask_1","revision":1,"sessionId":"sess_1","title":"Choose","ui":{"version":"${INTERACTION_UI_SCHEMA_VERSION}","presentation":"inline","title":"Pick one","schema":{"type":"object","properties":{"choice":{"type":"string","enum":["agree","decline"],"enumNames":["Yes, I agree","No, I decline"]}},"required":["choice"]}}}`,
+  `Example: ${JSON.stringify(ASK_TOOL_EXAMPLE_PAYLOAD)}`,
 ].join("\n");
 
 server.registerTool(

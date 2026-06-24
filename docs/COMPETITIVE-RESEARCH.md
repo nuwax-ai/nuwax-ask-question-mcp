@@ -49,7 +49,7 @@ sequenceDiagram
 | --- | --- | --- |
 | 触发 | 引擎 `session/request_permission` | Agent 调用 MCP 工具 |
 | SSE | `acpRequestPermission` / `request_permission` | `agentSessionUpdate` / `tool_call` |
-| 识别 | permission request 结构 | `rawInput.schemaVersion === nuwax.mcp_ask.v1` |
+| 识别 | permission request 结构 | `rawInput.schemaVersion === nuwax.mcp_ask.v2` |
 | 用户响应 | `POST .../agent-interventions/{id}/respond` → notify-resolved | **普通用户聊天消息** |
 | 恢复 | 同 permission 回调恢复 tool | **下一轮** Agent 读消息继续 |
 | Web 组件 | `AcpPermissionCard` | 规范要求 `McpAskQuestionCard`（待实现） |
@@ -63,7 +63,7 @@ sequenceDiagram
 
 ### 2.1 核心设计选择
 
-1. **UI 在自有客户端**：`nuwax.interaction.v1` + JSON Schema / uiSchema，支持 `modal` / `inline` / `wizard` / `table`、文件上传、`enumNames` 等。
+1. **UI 在自有客户端**：`nuwax.interaction.v2` + 字段数组 `ui.fields`，支持 `modal` / `inline` / `wizard` 、文件上传、选择类 `options` 等。
 2. **恢复模型**：工具返回 `pending` → Agent 停轮 → 用户答案以**可读中文普通消息**进入下一轮（非 MCP 同步等待、非 LangGraph 同 thread resume）。
 3. **识别**：仅认标准 `tool_call` + `rawInput`，禁止自定义 `mcpAskQuestion` progress 类型。
 4. **轻量 MCP 进程**：契约与校验在 npm 包；状态在会话消息流，不在 MCP server。
@@ -99,11 +99,11 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 **MCP Elicitation 关键限制**（官方 spec 最新 2025-11-25）：
 
 - form mode 的 `requestedSchema` 仍限制为扁平 object + primitive properties；支持 string / number / boolean / enum，以及多选 enum 这类受限数组。
-- 不支持复杂嵌套、数组对象、wizard/table/file 等高级 UI（我方 `nuwax.interaction.v1` 超出其子集）。
+- 不支持复杂嵌套、数组对象、wizard/file 等高级 UI（我方 `nuwax.interaction.v2` 超出其子集）。
 - URL mode 用于敏感信息、OAuth、支付等不应穿过 MCP client / LLM 上下文的流程；它更像安全 fallback，而不是会话内富表单替代。
 - Elicitation 是 MCP 层的请求/响应恢复模型；我方 v1 刻意让 MCP 立即返回 `pending`，再由下一条普通聊天消息恢复。
 
-**兼容策略**（nuwaclaw 归档设计已预见）：简单单页表单可映射为 Elicitation form `requestedSchema`；敏感/OAuth/支付类走 URL mode 或自有安全页面；复杂交互仍走 `nuwax.interaction.v1`。
+**兼容策略**（nuwaclaw 归档设计已预见）：简单单页表单可映射为 Elicitation form `requestedSchema`；敏感/OAuth/支付类走 URL mode 或自有安全页面；复杂交互仍走 `nuwax.interaction.v2`。
 
 ### 3.2 MCP 开源实现层（npm / GitHub）
 
@@ -156,11 +156,11 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 
 ### 5.1 vs MCP Elicitation
 
-| 项 | MCP Elicitation | Nuwax `nuwax.mcp_ask.v1` |
+| 项 | MCP Elicitation | Nuwax `nuwax.mcp_ask.v2` |
 | --- | --- | --- |
 | 发起方 | Server → Client `elicitation/create` | Agent tool → `tool_call.rawInput` |
 | 等待 | Server 阻塞至用户提交 | MCP 立即返回 pending；用户稍后聊天回复 |
-| Schema | form mode 为扁平 primitive 子集；URL mode 为外部页面 | JSON Schema + uiSchema + steps/table/file |
+| Schema | form mode 为扁平 primitive 子集；URL mode 为外部页面 | 字段数组 `ui.fields` + steps/file |
 | 响应 | `action` + `content` JSON | 格式化中文自然语言消息 |
 | 敏感数据 | 禁止 form mode 收集；URL mode 专门承载敏感/OAuth/支付流程 | `business` 禁止 secret；敏感走 URL fallback / 自有安全页面 |
 | Client 要求 | 必须声明 `elicitation` capability | 只需解析 SSE `tool_call` |
@@ -193,13 +193,13 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 | **nuwaclaw** | ✅ bridge 透传 tool_call | 文档化 MCP 注入配置；确认各引擎 `rawInput` 不被裁剪 |
 | **agent-platform** | ✅ 转发 tool_call SSE | 无需为 Ask 增 intervention API；保持与 permission 路径隔离 |
 | **nuwax Web** | ✅ 分支已实现 | `codex/acp-mode-intervention-ui` 已接入 `AgentIntervention`、MCP Ask SSE patch、卡片、resume message 与历史 hydrate；待合并 main |
-| **nuwax-mobile** | ✅ 分支已实现 | `feat/intervention-ui` 已接入卡片与 adapter；已补齐 `data.rawInput` 标准路径与 resume 文案一致性；wizard/table 复杂态仍需回归测试 |
+| **nuwax-mobile** | ✅ 分支已实现 | `feat/intervention-ui` 已接入卡片与 adapter；已补齐 `data.rawInput` 标准路径与 resume 文案一致性；wizard 复杂态仍需回归测试 |
 
 ### 6.1 nuwax Web 建议实现路径（对标 mobile）
 
 1. 新增 `utils/mcpAsk.ts`：`isMcpAskToolCallEvent`、`extractMcpAskInteraction`、`buildMcpAskResumeMessage`（逻辑对齐 mobile，但 parser 必须兼容 `data.rawInput`、`data.ext.rawInput`、根级 `rawInput`）。
 2. 在 `conversationInfo.ts` PROCESSING 分支中，于 permission 判断后增加 MCP Ask 分支，挂载 `mcpAskInteractions` 或嵌入 tool_call 卡片状态。
-3. 新增 `components/McpAskQuestionCard`：解析 `ui.schema` / `uiSchema` widget（radio、checkboxes、file、list、wizard steps）。
+3. 新增 `components/McpAskQuestionCard`：解析 `ui.fields` 字段数组（radio、checkboxes、file、list、wizard steps）。
 4. 提交时调用现有发消息 API，**不**调用 `apiResolveAcpPermission` / intervention respond。
 
 ---
@@ -218,7 +218,7 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 
 本仓库落地计划见 [DEVELOPMENT-PLAN.md](./DEVELOPMENT-PLAN.md)。关键决策：
 
-- v1 仅使用最新 `nuwax.mcp_ask.v1` / `nuwax.interaction.v1`，不保留旧命名空间兼容。
+- 仅使用最新 `nuwax.mcp_ask.v2` / `nuwax.interaction.v2`，不保留旧命名空间兼容。
 - 上下游客户端需要同步切到 `nuwax.*` 版本识别。
 - 工具入口保持纯粹：仅注册并接受 `nuwax_ask_question`；`ask-question_nuwax_ask_question` 这类显示名中的 `ask-question` 来自 MCP server key 前缀，不是额外工具名。
 
@@ -241,7 +241,7 @@ export async function handleAsk(input: McpAskUserToolInput): Promise<CallToolRes
 ## 8. 总结论
 
 1. **无可直接替换的竞品**：市面 MCP 交互包面向本地 CLI；框架 HITL 面向单宿主 run 恢复；均不匹配 Nuwax「云端 SSE + Web/Mobile 富表单 + 聊天消息回流」。
-2. **应坚持自研**：`nuwax.mcp_ask.v1` + `nuwax.interaction.v1` 作为跨端 UI 协议；轻量 MCP server 只做校验与 pending 信号。
+2. **应坚持自研**：`nuwax.mcp_ask.v2` + `nuwax.interaction.v2` 作为跨端 UI 协议；轻量 MCP server 只做校验与 pending 信号。
 3. **应主动借鉴**：MCP Elicitation 三态、form 子集映射与 URL mode 安全 fallback；OpenAI/AI SDK 的 approval 结构化与可序列化 state；CopilotKit / approval-card 的卡片 UX。
 4. **当前最大 gap**：跨端接入已在分支完成，下一步重点是合并前验收：Web/Mobile 均需用标准 `agentSessionUpdate/tool_call + data.rawInput` 样例验证，并确认 Ask 不走 ACP permission API。
 

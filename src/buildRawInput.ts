@@ -2,6 +2,7 @@ import {
   ASK_SCHEMA_VERSION,
   INTERACTION_UI_SCHEMA_VERSION,
   MCP_ASK_TOOL_NAME,
+  type FormField,
 } from "./types.js";
 import {
   normalizeBuilderFieldType,
@@ -29,6 +30,7 @@ export interface BuilderFormField {
   label: string;
   required?: boolean;
   placeholder?: string;
+  initialValue?: unknown;
   options?: BuilderFieldOption[];
   minimum?: number;
   maximum?: number;
@@ -42,7 +44,7 @@ export interface BuildMcpAskRawInputOptions {
   sessionId: string;
   title: string;
   description?: string;
-  presentation?: "modal" | "inline" | "wizard" | "table";
+  presentation?: "modal" | "inline" | "wizard";
   fields: BuilderFormField[];
   submitLabel?: string;
   cancelLabel?: string;
@@ -51,42 +53,44 @@ export interface BuildMcpAskRawInputOptions {
   business?: Record<string, unknown>;
 }
 
-type JsonSchemaProperty = Record<string, unknown>;
-type UiSchemaEntry = Record<string, unknown>;
-
 /**
- * 将单个 Builder 字段转为 JSON Schema property + uiSchema 条目。
+ * 将单个 Builder 字段转为 v2 字段对象（控件/选项/约束/必填合并进同一对象）。
+ * v2 起不再拆分 JSON Schema property + uiSchema 条目。
  */
-export function buildFieldSchemaParts(field: BuilderFormField): {
-  property: JsonSchemaProperty;
-  uiSchema: UiSchemaEntry;
-} {
+export function buildFormField(field: BuilderFormField): FormField {
   const widget = normalizeBuilderFieldType(field.type);
-  const property: JsonSchemaProperty = { title: field.label };
-  const uiSchema: UiSchemaEntry = {};
+  const formField: FormField = {
+    name: field.name,
+    title: field.label,
+    widget,
+  };
 
+  if (field.required) {
+    formField.required = true;
+  }
   if (field.placeholder) {
-    uiSchema["ui:options"] = { placeholder: field.placeholder };
+    formField.placeholder = field.placeholder;
+  }
+  if (field.initialValue !== undefined) {
+    formField.initialValue = field.initialValue;
+  }
+  if (field.options?.length) {
+    formField.options = field.options.map((o) => ({ value: o.value, label: o.label }));
   }
 
   switch (widget) {
     case "text":
-      property.type = "string";
-      break;
-
     case "textarea":
-      property.type = "string";
-      uiSchema["ui:widget"] = "textarea";
+      // string 类型由 widget 推断，无需显式 type
       break;
 
     case "number": {
       const hasIntegerBounds =
         (field.minimum === undefined || Number.isInteger(field.minimum)) &&
         (field.maximum === undefined || Number.isInteger(field.maximum));
-      property.type = hasIntegerBounds ? "integer" : "number";
-      if (field.minimum !== undefined) property.minimum = field.minimum;
-      if (field.maximum !== undefined) property.maximum = field.maximum;
-      uiSchema["ui:widget"] = "number";
+      formField.type = hasIntegerBounds ? "integer" : "number";
+      if (field.minimum !== undefined) formField.minimum = field.minimum;
+      if (field.maximum !== undefined) formField.maximum = field.maximum;
       break;
     }
 
@@ -97,15 +101,8 @@ export function buildFieldSchemaParts(field: BuilderFormField): {
       if (!field.options?.length) {
         throw new Error(`Field "${field.name}" (${widget}) requires options`);
       }
-      property.type = "string";
-      property.enum = field.options.map((o) => o.value);
-      property.enumNames = field.options.map((o) => o.label);
-      uiSchema["ui:widget"] = widget;
       if (widget === "radio-with-custom") {
-        uiSchema["ui:options"] = {
-          ...(uiSchema["ui:options"] as object),
-          allowCustom: true,
-        };
+        formField.allowCustom = true;
       }
       break;
     }
@@ -114,31 +111,20 @@ export function buildFieldSchemaParts(field: BuilderFormField): {
       if (!field.options?.length) {
         throw new Error(`Field "${field.name}" (checkboxes) requires options`);
       }
-      property.type = "array";
-      property.uniqueItems = true;
-      property.items = {
-        type: "string",
-        enum: field.options.map((o) => o.value),
-      };
-      uiSchema["ui:widget"] = "checkboxes";
-      uiSchema["ui:options"] = {
-        ...(uiSchema["ui:options"] as object),
-        enumNames: field.options.map((o) => o.label),
-      };
+      formField.type = "array";
       break;
     }
 
-    case "file":
-      property.type = "string";
-      property.format = "data-url";
-      uiSchema["ui:widget"] = "file";
+    case "file": {
       if (field.file) {
-        uiSchema["ui:options"] = {
-          ...(uiSchema["ui:options"] as object),
-          ...field.file,
-        };
+        if (field.file.accept !== undefined) formField.accept = field.file.accept;
+        if (field.file.multiple !== undefined) formField.multiple = field.file.multiple;
+        if (field.file.maxFileSize !== undefined) {
+          formField.maxFileSize = field.file.maxFileSize;
+        }
       }
       break;
+    }
 
     default: {
       const exhaustive: never = widget;
@@ -146,29 +132,17 @@ export function buildFieldSchemaParts(field: BuilderFormField): {
     }
   }
 
-  return { property, uiSchema };
+  return formField;
 }
 
 /**
  * 从 Builder 字段列表生成 ACP rawInput（McpAskUserToolInput）。
+ * v2：表单以 ui.fields（有序数组）表达。
  */
 export function buildMcpAskRawInput(
   options: BuildMcpAskRawInputOptions,
 ): Record<string, unknown> {
-  const properties: Record<string, JsonSchemaProperty> = {};
-  const uiSchema: Record<string, UiSchemaEntry> = {};
-  const required: string[] = [];
-
-  for (const field of options.fields) {
-    const { property, uiSchema: fieldUi } = buildFieldSchemaParts(field);
-    properties[field.name] = property;
-    if (Object.keys(fieldUi).length > 0) {
-      uiSchema[field.name] = fieldUi;
-    }
-    if (field.required) {
-      required.push(field.name);
-    }
-  }
+  const fields = options.fields.map(buildFormField);
 
   return {
     toolName: MCP_ASK_TOOL_NAME,
@@ -182,12 +156,7 @@ export function buildMcpAskRawInput(
       version: INTERACTION_UI_SCHEMA_VERSION,
       presentation: options.presentation ?? "inline",
       title: options.title,
-      schema: {
-        type: "object",
-        properties,
-        ...(required.length ? { required } : {}),
-      },
-      ...(Object.keys(uiSchema).length ? { uiSchema } : {}),
+      fields,
       ...(options.submitLabel ? { submitLabel: options.submitLabel } : {}),
       ...(options.cancelLabel ? { cancelLabel: options.cancelLabel } : {}),
     },

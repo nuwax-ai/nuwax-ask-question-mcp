@@ -30,7 +30,7 @@ An MCP server for interactive agent-to-user question cards in Nuwax conversation
 
 1. Agent calls MCP tool `nuwax_ask_question`
 2. Tool returns `status: "pending"` immediately; Agent stops the current turn
-3. Client (Web/Mobile) renders an interactive form based on the UI Schema
+3. Client (Web/Mobile) renders an interactive form based on `ui.fields`
 4. User submits the form; the answer arrives as a regular chat message to start the next agent turn
 
 > **Note:** This tool handles question/answer interactions only. ACP permission approval uses a separate transport contract (`acpRequestPermission`) and is not routed through this MCP tool.
@@ -109,30 +109,31 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 
 ## Tool Input
 
+> v2: the form is expressed as `ui.fields` (an ordered field array) — **no `schema` / `uiSchema` / `ui:order`**. Version fields (`schemaVersion`, `ui.version`) are stamped by the server and **may be omitted** by the agent.
+
 ```json
 {
-  "schemaVersion": "nuwax.mcp_ask.v1",
   "requestId": "ask_123",
   "revision": 1,
   "sessionId": "session_123",
   "title": "Choose an option",
   "description": "The agent needs your decision before continuing.",
   "ui": {
-    "version": "nuwax.interaction.v1",
     "presentation": "inline",
     "title": "Choose an option",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "choice": {
-          "type": "string",
-          "title": "Option",
-          "enum": ["a", "b"],
-          "enumNames": ["Option A", "Option B"]
-        }
-      },
-      "required": ["choice"]
-    },
+    "fields": [
+      {
+        "name": "choice",
+        "title": "Option",
+        "widget": "radio",
+        "required": true,
+        "initialValue": "a",
+        "options": [
+          { "value": "a", "label": "Option A" },
+          { "value": "b", "label": "Option B" }
+        ]
+      }
+    ],
     "submitLabel": "Submit",
     "cancelLabel": "Cancel"
   },
@@ -140,13 +141,13 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 }
 ```
 
-### Field Reference
+### Top-level Field Reference
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `schemaVersion` | string | ✅ | Must be `"nuwax.mcp_ask.v1"` |
-| `requestId` | string | ✅ | Unique request identifier |
-| `revision` | number | ✅ | Positive integer, version number |
+| `schemaVersion` | string | (omit) | Fixed `"nuwax.mcp_ask.v2"`, stamped by server |
+| `requestId` | string | ✅ | Unique request identifier (agent generates a stable id) |
+| `revision` | number | ✅ | Positive integer; defaults to `1` for a new ask |
 | `sessionId` | string | ✅ | Session ID |
 | `title` | string | ✅ | Question title |
 | `description` | string | | Question description |
@@ -155,22 +156,39 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
 | `timeoutMs` | number | | Timeout in milliseconds |
 | `priority` | `"normal" \| "high"` | | Priority level |
 
-### UI Schema Fields
+### UI Fields
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | string | ✅ | Must be `"nuwax.interaction.v1"` |
-| `presentation` | string | ✅ | Display mode: `modal` / `inline` / `wizard` / `table` |
+| `version` | string | (omit) | Fixed `"nuwax.interaction.v2"`, stamped by server |
+| `presentation` | string | ✅ | Display mode: `modal` / `inline` / `wizard`  |
 | `title` | string | ✅ | Form title |
 | `description` | string | | Form description |
-| `schema` | object | ✅ | JSON Schema defining form fields |
-| `uiSchema` | object | | UI enhancement config (widget types, options, etc.) |
-| `table` | object | | Table display configuration |
-| `initialValue` | object | | Initial form values |
-| `steps` | array | | Wizard steps (for wizard mode) |
+| `fields` | array | ✅* | Form fields (ordered array, see below); required for inline/modal/wizard |
+| `steps` | array | | Wizard steps (`fields` is an array of field names) |
 | `submitLabel` | string | | Submit button label |
 | `cancelLabel` | string | | Cancel button label |
 | `fallback` | object | | Fallback: `text` + optional `webUrl` / `mobileUrl` |
+
+### `fields[]` definition (aligned with antd Form.Item)
+
+Each field object self-describes its control, options, constraints, and initial value. Mapping to [Ant Design Form](https://ant.design/components/form): `name`→`Form.Item.name`, `title`→`label`, `description`→`tooltip/help`, `required`+constraints→`rules`, `placeholder`→control placeholder, `initialValue`→`Form.Item.initialValue`, `options`→`Radio.Group/Select/Checkbox.Group`.
+
+| Field property | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | ✅ | formData key, unique across the form |
+| `title` | string | ✅ | Display label (antd label) |
+| `widget` | string | ✅ | Control type (see widget catalog) |
+| `description` | string | | Field help text (tooltip) |
+| `required` | boolean | | Required, default false |
+| `placeholder` | string | | Placeholder hint |
+| `initialValue` | any | | Field initial value (moved from `ui.initialValue`) |
+| `type` | string | | Value type `string`/`integer`/`number`/`array`; inferred from widget if omitted |
+| `options` | array | | Choice options: `[{value, label}]` (merges old `enum`+`enumNames`) |
+| `minimum`/`maximum`/`multipleOf` | number | | Numeric constraints (widget=number) |
+| `minLength`/`maxLength`/`pattern` | | | Text constraints (widget=text/textarea) |
+| `accept`/`multiple`/`maxFileSize` | | | File control config (widget=file) |
+| `allowCustom`/`otherValue`/`otherField` | | | radio-with-custom config |
 
 ## Tool Result
 
@@ -182,16 +200,16 @@ When you need user input, preferences, or decisions, always use the nuwax_ask_qu
   "message": "The question has been presented to the user. Stop this turn now. When the user submits the form, their answer will arrive as a new user message.",
   "input": {
     "toolName": "nuwax_ask_question",
-    "schemaVersion": "nuwax.mcp_ask.v1",
+    "schemaVersion": "nuwax.mcp_ask.v2",
     "requestId": "ask_123",
     "revision": 1,
     "sessionId": "session_123",
     "title": "Choose an option",
     "ui": {
-      "version": "nuwax.interaction.v1",
+      "version": "nuwax.interaction.v2",
       "presentation": "inline",
       "title": "Choose an option",
-      "schema": { "type": "object", "properties": {} }
+      "fields": [ /* ... */ ]
     }
   }
 }
@@ -228,21 +246,21 @@ import schema from 'nuwax-ask-question-mcp/schemas/schema.json' assert { type: '
 const schema = require('nuwax-ask-question-mcp/schemas/schema.json');
 ```
 
-Widget types in `x-nuwax.widgetCatalog` — `field.type` and `ui:widget` use the same names (RJSF-aligned):
+Widget types in `x-nuwax.widgetCatalog` — each field specifies its control via `widget`:
 
-| `ui:widget` | Description | Auto-infer |
-|---|---|---|
-| `text` | Single-line text | ✅ `type: string` |
-| `textarea` | Multi-line text | ❌ explicit only |
-| `number` | Number input | ✅ `type: number/integer` |
-| `radio` | Single choice | ✅ with `enum` |
-| `checkboxes` | Multi choice | ✅ `array` + `items.enum` |
-| `select` | Dropdown | ❌ |
-| `list` | List single-select | ❌ |
-| `file` | File upload | ❌ needs `format: data-url` |
-| `radio-with-custom` | Radio + custom input | ❌ needs `ui:options.allowCustom: true` |
+| `widget` | Description | antd control | Auto-infer |
+|---|---|---|---|
+| `text` | Single-line text | `Input` | ✅ `type: string` |
+| `textarea` | Multi-line text | `Input.TextArea` | ❌ explicit only |
+| `number` | Number input | `InputNumber` | ✅ `type: number/integer` |
+| `radio` | Single choice | `Radio.Group` | ✅ has `options` |
+| `checkboxes` | Multi choice | `Checkbox.Group` | ✅ `type: array` + `options` |
+| `select` | Dropdown | `Select` | ❌ |
+| `list` | List single-select | `Radio.Group` (vertical) | ❌ |
+| `file` | File upload | `Upload` | ❌ |
+| `radio-with-custom` | Radio + custom input | `Radio.Group` + input | ❌ needs `allowCustom: true` |
 
-Deprecated aliases: `input` → `text`, `checkbox` → `checkboxes`.
+> v2 recommends `widget` be required, removing inference ambiguity. Deprecated aliases: `input` → `text`, `checkbox` → `checkboxes`.
 
 ### Builder SDK (rawInput generation)
 
@@ -259,9 +277,10 @@ const rawInput = buildMcpAskRawInput({
   fields: [
     {
       name: 'choice',
-      type: 'radio',
+      type: 'radio', // deprecated aliases input / checkbox also accepted
       label: 'Option',
       required: true,
+      initialValue: 'test',
       options: [
         { value: 'test', label: 'Run tests first' },
         { value: 'deploy', label: 'Deploy directly' },
@@ -279,97 +298,74 @@ Regenerate JSON Schema:
 npm run generate:schema   # refresh schemas/schema.json from Zod + widgets.ts
 ```
 
-## Widget Extensions
+## Widget Examples (fields[])
 
-### Important: Radio/Checkbox Fields Must Display Option Labels
+### Radio / Checkbox: must display option labels
 
-**Single-choice (radio) and multi-choice (checkbox) fields MUST display human-readable labels for each option — never show bare values without descriptions.**
+Choice widgets (radio/checkboxes/select/list/radio-with-custom) provide options via `options: [{value, label}]` — **always include a human-readable `label`, never a bare value**.
 
-- Use `enumNames` or `uiSchema` `enumLabels` to provide clear descriptions for each option
-- Option labels should clearly communicate what each choice means
-- Bad example: `enum: ["yes", "no"]` (users don't know what yes/no represents)
-- Good example: `enum: ["yes", "no"]` + `enumNames: ["Yes, I agree", "No, I decline"]`
+```json
+[
+  {
+    "name": "agree",
+    "title": "Do you agree?",
+    "widget": "radio",
+    "required": true,
+    "options": [
+      { "value": "yes", "label": "Yes, I agree" },
+      { "value": "no", "label": "No, I decline" }
+    ]
+  }
+]
+```
 
-### File Upload Widget
-
-Clients render a file upload widget when a schema property uses:
+### File Upload
 
 ```json
 {
-  "screenshot": {
-    "type": "string",
-    "format": "data-url",
-    "title": "Screenshot"
-  }
+  "name": "screenshot",
+  "title": "Screenshot",
+  "widget": "file",
+  "accept": "image/*",
+  "multiple": false,
+  "maxFileSize": 10485760
 }
 ```
-
-Specify the widget type and options via `uiSchema`:
-
-```json
-{
-  "screenshot": {
-    "ui:widget": "file",
-    "ui:options": {
-      "accept": "image/*",
-      "multiple": false,
-      "maxFileSize": 10485760
-    }
-  }
-}
-```
-
-`ui:options` supported:
 
 | Option | Type | Description |
 |---|---|---|
-| `accept` | string | MIME type filter, e.g. `"image/*"`, `"application/pdf"` |
-| `multiple` | boolean | Allow multiple file selection |
+| `accept` | string | MIME filter, e.g. `"image/*"`, `"application/pdf"` |
+| `multiple` | boolean | Allow multiple files |
 | `maxFileSize` | number | Max file size in bytes |
 
-### Number Widget
-
-When a schema field uses `type: "number"` or `type: "integer"`, clients render a number input:
+### Number
 
 ```json
 {
-  "count": {
-    "type": "integer",
-    "title": "Concurrency",
-    "minimum": 1,
-    "maximum": 10
-  }
+  "name": "count",
+  "title": "Concurrency",
+  "widget": "number",
+  "type": "integer",
+  "initialValue": 1,
+  "minimum": 1,
+  "maximum": 10
 }
 ```
 
-Explicit via `uiSchema` (optional — `number/integer` types are auto-inferred):
+### List (Single Select)
+
+Suitable for longer option lists, rendered as a vertical list:
 
 ```json
 {
-  "count": { "ui:widget": "number" }
-}
-```
-
-### List Widget (Single Select)
-
-Suitable for longer option lists, renders as a vertical radio-style list:
-
-```json
-{
-  "framework": {
-    "type": "string",
-    "title": "Framework",
-    "enum": ["react", "vue", "angular", "svelte", "solid"],
-    "enumNames": ["React", "Vue", "Angular", "Svelte", "SolidJS"]
-  }
-}
-```
-
-Specify the list widget via `uiSchema`:
-
-```json
-{
-  "framework": { "ui:widget": "list" }
+  "name": "framework",
+  "title": "Framework",
+  "widget": "list",
+  "options": [
+    { "value": "react", "label": "React" },
+    { "value": "vue", "label": "Vue" },
+    { "value": "angular", "label": "Angular" }
+  ]
 }
 ```
 
@@ -387,8 +383,8 @@ Clients should format form answers as readable chat messages (not raw JSON). Rec
 Formatting rules:
 
 - `{title}` uses the MCP input `title`, falling back to `ui.title`
-- Field labels use `properties[field].title` from JSON Schema; fall back to the field key
-- Enum values use display names from `uiSchema[field]["ui:options"].enumNames` when provided
+- Field labels use the matching field's `title` in `ui.fields`; fall back to the field `name`
+- Choice display values prefer the `label` of the matching `value` in `options`
 - Array values are joined with `、`
 - Boolean values render as `是` / `否`
 - Empty values render as `未填写`
@@ -428,8 +424,8 @@ npm run dev          # Run in dev mode
 Publish to npm automatically via Git tags:
 
 ```bash
-git tag v1.x.x
-git push origin v1.x.x
+git tag v4.x.x
+git push origin v4.x.x
 ```
 
 ## License

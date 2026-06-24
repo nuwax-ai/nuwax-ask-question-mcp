@@ -4,7 +4,7 @@ import {
   askUserPayloadShape,
   normalizeMcpAskUserToolInput,
 } from "./askUserPayload.js";
-import { ASK_TOOL_DESCRIPTION, handleAsk } from "./index.js";
+import { ASK_TOOL_DESCRIPTION, ASK_TOOL_EXAMPLE_PAYLOAD, handleAsk } from "./index.js";
 import {
   ASK_SCHEMA_VERSION,
   ASK_STATUS_PENDING,
@@ -12,7 +12,7 @@ import {
   MCP_ASK_TOOL_NAME,
 } from "./types.js";
 
-/** 构造合法输入的工厂函数 */
+/** 构造合法输入的工厂函数（v2：表单用 fields[]，最小 ui 无需 fields） */
 function validInput(overrides = {}) {
   return {
     toolName: MCP_ASK_TOOL_NAME as string,
@@ -25,7 +25,6 @@ function validInput(overrides = {}) {
       version: INTERACTION_UI_SCHEMA_VERSION,
       presentation: "inline" as const,
       title: "Question Title",
-      schema: { type: "object", properties: {} },
     },
     ...overrides,
   };
@@ -117,7 +116,6 @@ describe("handleAsk", () => {
         version: "nuwaclaw.interaction.v1",
         presentation: "inline" as const,
         title: "Question Title",
-        schema: { type: "object", properties: {} },
       },
     });
 
@@ -133,16 +131,14 @@ describe("normalizeMcpAskUserToolInput", () => {
       sessionId: "weather-dev",
       title: "确认实现方案",
       ui: {
-        version: INTERACTION_UI_SCHEMA_VERSION,
         presentation: "modal",
         title: "确认实现方案",
-        schema: {
-          type: "object",
-          properties: {
-            data_source: { type: "string", enum: ["851", "72"] },
-          },
-          required: ["data_source"],
-        },
+        fields: [
+          { name: "data_source", title: "数据源", widget: "select", options: [
+            { value: "851", label: "851" },
+            { value: "72", label: "72" },
+          ] },
+        ],
       },
     });
 
@@ -162,7 +158,6 @@ describe("normalizeMcpAskUserToolInput", () => {
       ui: {
         presentation: "inline",
         title: "Pick one",
-        schema: { type: "object", properties: {} },
       },
     });
 
@@ -175,7 +170,7 @@ describe("ASK_TOOL_DESCRIPTION", () => {
     expect(ASK_TOOL_DESCRIPTION).toContain(MCP_ASK_TOOL_NAME);
   });
 
-  it("包含当前 UI schema 版本（防止与 INTERACTION_UI_SCHEMA_VERSION 失同步）", () => {
+  it("示例携带当前 UI schema 版本（防止与 INTERACTION_UI_SCHEMA_VERSION 失同步）", () => {
     expect(ASK_TOOL_DESCRIPTION).toContain(INTERACTION_UI_SCHEMA_VERSION);
   });
 
@@ -189,14 +184,41 @@ describe("ASK_TOOL_DESCRIPTION", () => {
     expect(ASK_TOOL_DESCRIPTION).toContain("user input");
   });
 
-  it("包含最小化 JSON 示例，帮助 Agent 构造参数", () => {
+  it("包含完整 JSON 示例，帮助 Agent 构造参数", () => {
     expect(ASK_TOOL_DESCRIPTION).toContain(ASK_SCHEMA_VERSION);
     expect(ASK_TOOL_DESCRIPTION).toContain('"requestId"');
     expect(ASK_TOOL_DESCRIPTION).toContain('"sessionId"');
+    expect(ASK_TOOL_DESCRIPTION).toContain(
+      `Example: ${JSON.stringify(ASK_TOOL_EXAMPLE_PAYLOAD)}`,
+    );
   });
 
-  it("包含 schema 设计规则", () => {
-    expect(ASK_TOOL_DESCRIPTION).toContain("enumNames");
+  it("示例为简短的 fields[]（含 radio + textarea）", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain('"widget":"radio"');
+    expect(ASK_TOOL_DESCRIPTION).toContain('"widget":"textarea"');
+  });
+
+  it("示例不再包含 uiSchema / ui:order（v2 已合并/移除）", () => {
+    expect(ASK_TOOL_DESCRIPTION).not.toContain('"ui:order"');
+    expect(ASK_TOOL_DESCRIPTION).not.toContain('"ui:widget"');
+    expect(ASK_TOOL_DESCRIPTION).not.toContain('"uiSchema"');
+  });
+
+  it("示例包含关键 v2 字段片段", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain('"options"');
+    expect(ASK_TOOL_DESCRIPTION).toContain('"submitLabel"');
+    expect(ASK_TOOL_DESCRIPTION).toContain('"initialValue"');
+  });
+
+  it("示例可通过 normalizeMcpAskUserToolInput 严格校验", () => {
+    const normalized = normalizeMcpAskUserToolInput(ASK_TOOL_EXAMPLE_PAYLOAD);
+    expect(normalized.toolName).toBe(MCP_ASK_TOOL_NAME);
+    expect(normalized.schemaVersion).toBe(ASK_SCHEMA_VERSION);
+    expect(normalized.ui.version).toBe(INTERACTION_UI_SCHEMA_VERSION);
+  });
+
+  it("包含 schema 设计规则（options + 禁止裸值）", () => {
+    expect(ASK_TOOL_DESCRIPTION).toContain("options");
     expect(ASK_TOOL_DESCRIPTION).toContain("NEVER show bare values");
   });
 });
@@ -216,7 +238,6 @@ describe("askUserPayloadShape — agent 友好的版本默认值", () => {
       ui: {
         presentation: "inline" as const,
         title: "Question Title",
-        schema: { type: "object", properties: {} },
       },
       ...overrides,
     };
@@ -244,10 +265,9 @@ describe("askUserPayloadShape — agent 友好的版本默认值", () => {
     const result = schema.safeParse(
       agentInput({
         ui: {
-          version: "nuwaclaw.interaction.v1",
+          version: "nuwax.interaction.v1",
           presentation: "inline" as const,
           title: "Question Title",
-          schema: { type: "object", properties: {} },
         },
       }),
     );
