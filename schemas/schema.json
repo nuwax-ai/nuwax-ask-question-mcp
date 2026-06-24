@@ -307,8 +307,9 @@
                 "items": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "字段名（formData 的 key，全表单内唯一；wizard steps.fields 引用此 name）"
+                  "description": "引用 ui.fields 中某字段的 name"
                 },
+                "minItems": 1,
                 "description": "本步展示的字段 name 数组，引用 ui.fields 中字段的 name"
               }
             },
@@ -594,8 +595,9 @@
                     "items": {
                       "type": "string",
                       "minLength": 1,
-                      "description": "字段名（formData 的 key，全表单内唯一；wizard steps.fields 引用此 name）"
+                      "description": "引用 ui.fields 中某字段的 name"
                     },
+                    "minItems": 1,
                     "description": "本步展示的字段 name 数组，引用 ui.fields 中字段的 name"
                   }
                 },

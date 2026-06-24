@@ -143,6 +143,14 @@ export const InteractionUiSchema = z
       .describe("wizard 分步配置；仅 presentation=wizard 时使用"),
     submitLabel: z.string().optional().describe("提交按钮文案"),
     cancelLabel: z.string().optional().describe("取消按钮文案"),
+    allowSkip: z
+      .boolean()
+      .optional()
+      .describe("是否允许跳过(显示「跳过」按钮,跳过即放弃本次回答)"),
+    skipLabel: z
+      .string()
+      .optional()
+      .describe("跳过按钮文案(allowSkip=true 时显示)"),
     fallback: z
       .object({
         text: z.string().describe("降级文案"),
