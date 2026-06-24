@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "nuwax-ask-question-local": {
+      "comment": "推荐：dist 绝对路径，不依赖 cwd，不依赖 tsx",
+      "command": "node",
+      "args": ["/Users/apple/workspace/nuwax-ask-question-mcp/dist/index.js"],
+      "cwd": "/Users/apple/workspace/nuwax-ask-question-mcp"
+    },
+    "nuwax-ask-question-local-tsx": {
+      "comment": "改 TS 后无需 build；用 tsx 绝对路径（勿用 --import tsx 且无 cwd，会 Connection closed）",
+      "command": "node",
+      "args": [
+        "/Users/apple/workspace/nuwax-ask-question-mcp/node_modules/tsx/dist/cli.mjs",
+        "/Users/apple/workspace/nuwax-ask-question-mcp/src/index.ts"
+      ],
+      "cwd": "/Users/apple/workspace/nuwax-ask-question-mcp"
+    }
+  }
+}
