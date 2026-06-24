@@ -331,6 +331,14 @@
           "type": "string",
           "description": "取消按钮文案"
         },
+        "allowSkip": {
+          "type": "boolean",
+          "description": "是否允许跳过(显示「跳过」按钮,跳过即放弃本次回答)"
+        },
+        "skipLabel": {
+          "type": "string",
+          "description": "跳过按钮文案(allowSkip=true 时显示)"
+        },
         "fallback": {
           "type": "object",
           "properties": {
@@ -618,6 +626,14 @@
             "cancelLabel": {
               "type": "string",
               "description": "取消按钮文案"
+            },
+            "allowSkip": {
+              "type": "boolean",
+              "description": "是否允许跳过(显示「跳过」按钮,跳过即放弃本次回答)"
+            },
+            "skipLabel": {
+              "type": "string",
+              "description": "跳过按钮文案(allowSkip=true 时显示)"
             },
             "fallback": {
               "type": "object",
