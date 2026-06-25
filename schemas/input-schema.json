@@ -228,13 +228,7 @@
                 "description": "步骤说明"
               },
               "fields": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "引用 ui.fields 中某字段的 name"
-                },
-                "minItems": 1,
+                "$ref": "#/properties/ui/properties/fields",
                 "description": "本步展示的字段 name 数组，引用 ui.fields 中字段的 name"
               }
             },
@@ -255,6 +249,14 @@
         "cancelLabel": {
           "type": "string",
           "description": "取消按钮文案"
+        },
+        "allowSkip": {
+          "type": "boolean",
+          "description": "是否允许跳过(显示「跳过」按钮,跳过即放弃本次回答)"
+        },
+        "skipLabel": {
+          "type": "string",
+          "description": "跳过按钮文案(allowSkip=true 时显示)"
         },
         "fallback": {
           "type": "object",

@@ -39,8 +39,7 @@ export const FormFieldOptionSchema = z
 
 /**
  * 字段名：formData 的 key（全表单内唯一）。
- * 仅用于 FormField.name；wizard steps[].fields 另用内联 z.string().min(1)，
- * 避免 zod-to-json-schema 把 steps 项 $ref 到 ui.fields[].name（对 LLM 不直观）。
+ * 用于 FormField.name；wizard steps[].fields 通过 WizardStepFieldsSchema 引用同一 name 类型。
  */
 export const FieldNameSchema = z
   .string()
@@ -103,10 +102,58 @@ export const FormFieldSchema = z
   .strict();
 
 /**
- * 交互 UI 定义（v2）。表单以有序 fields[] 表达；数组顺序即渲染顺序。
- * 不再存在 schema/uiSchema/ui:order。inline/modal/wizard 必填 fields。
+ * ui.fields：完整 FormField 有序数组。
+ * JSON Schema 展示时 steps.fields 通过脚本 $ref 指向此处。
  */
-export const InteractionUiSchema = z
+export const UiFieldsArraySchema = z
+  .array(FormFieldSchema)
+  .describe("表单字段（有序数组）；数组顺序即展示顺序。inline/modal/wizard 必填");
+
+/**
+ * wizard steps[].fields：ui.fields 中字段 name 的有序子集（wire 为 string[]，非完整 FormField）。
+ */
+export const WizardStepFieldsSchema = z
+  .array(FieldNameSchema)
+  .min(1)
+  .describe("本步展示的字段 name 数组，引用 ui.fields 中字段的 name");
+
+/** wizard 单步定义 */
+export const WizardStepSchema = z
+  .object({
+    id: z.string().min(1).describe("步骤唯一标识"),
+    title: z.string().min(1).describe("步骤标题"),
+    description: z.string().optional().describe("步骤说明"),
+    fields: WizardStepFieldsSchema,
+  })
+  .describe("wizard 的单个步骤");
+
+/** steps.fields 中的 name 须已在 ui.fields 声明（二者皆存在时校验） */
+export function refineWizardStepFieldRefs(
+  ui: {
+    steps?: { fields: string[] }[];
+    fields?: { name: string }[];
+  },
+  ctx: z.RefinementCtx,
+): void {
+  if (!ui.steps?.length || !ui.fields?.length) return;
+  const declared = new Set(ui.fields.map((field) => field.name));
+  ui.steps.forEach((step, stepIndex) => {
+    step.fields.forEach((name, fieldIndex) => {
+      if (!declared.has(name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `steps[${stepIndex}].fields[${fieldIndex}] 引用的字段名 "${name}" 不存在于 ui.fields`,
+          path: ["steps", stepIndex, "fields", fieldIndex],
+        });
+      }
+    });
+  });
+}
+
+/**
+ * 交互 UI 对象（v2）——可 .extend()；校验请用 InteractionUiSchema。
+ */
+export const InteractionUiSchemaBase = z
   .object({
     version: z
       .literal(INTERACTION_UI_SCHEMA_VERSION)
@@ -116,29 +163,9 @@ export const InteractionUiSchema = z
       .describe("展示方式：inline（行内，最常用）/ modal（弹窗）/ wizard（分步）"),
     title: z.string().min(1).describe("卡片内表单标题"),
     description: z.string().optional().describe("卡片内表单说明"),
-    fields: z
-      .array(FormFieldSchema)
-      .optional()
-      .describe("表单字段（有序数组）；数组顺序即展示顺序。inline/modal/wizard 必填"),
+    fields: UiFieldsArraySchema.optional(),
     steps: z
-      .array(
-        z
-          .object({
-            id: z.string().min(1).describe("步骤唯一标识"),
-            title: z.string().min(1).describe("步骤标题"),
-            description: z.string().optional().describe("步骤说明"),
-            fields: z
-              .array(
-                z
-                  .string()
-                  .min(1)
-                  .describe("引用 ui.fields 中某字段的 name"),
-              )
-              .min(1)
-              .describe("本步展示的字段 name 数组，引用 ui.fields 中字段的 name"),
-          })
-          .describe("wizard 的单个步骤"),
-      )
+      .array(WizardStepSchema)
       .optional()
       .describe("wizard 分步配置；仅 presentation=wizard 时使用"),
     submitLabel: z.string().optional().describe("提交按钮文案"),
@@ -162,6 +189,12 @@ export const InteractionUiSchema = z
   })
   .passthrough();
 
+/**
+ * 交互 UI 定义（v2）。表单以有序 fields[] 表达；数组顺序即渲染顺序。
+ * 不再存在 schema/uiSchema/ui:order。inline/modal/wizard 必填 fields。
+ */
+export const InteractionUiSchema = InteractionUiSchemaBase.superRefine(refineWizardStepFieldRefs);
+
 export const McpAskUserToolInputSchema = z
   .object({
     toolName: z.literal(MCP_ASK_TOOL_NAME).describe("MCP 工具名，与 ACP tool_call.rawInput.toolName 一致"),
@@ -180,5 +213,6 @@ export const McpAskUserToolInputSchema = z
 
 export type FormFieldOption = z.infer<typeof FormFieldOptionSchema>;
 export type FormField = z.infer<typeof FormFieldSchema>;
+export type WizardStep = z.infer<typeof WizardStepSchema>;
 export type InteractionUiSchema = z.infer<typeof InteractionUiSchema>;
 export type McpAskUserToolInput = z.infer<typeof McpAskUserToolInputSchema>;

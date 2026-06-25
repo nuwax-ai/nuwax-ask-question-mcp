@@ -37,6 +37,18 @@ function zodDef(schema: ZodTypeAny, name: string): Def {
   return def as Def;
 }
 
+/** wizard steps[].fields → $ref ui.fields（$refStrategy: "none" 会内联，需后处理） */
+function patchWizardStepFieldRefs(uiDef: Def, fieldsRef: string): void {
+  const steps = (uiDef.properties as Def | undefined)?.steps as Def | undefined;
+  const stepProps = (steps?.items as Def | undefined)?.properties as Def | undefined;
+  if (stepProps?.fields && typeof stepProps.fields === "object") {
+    stepProps.fields = {
+      $ref: fieldsRef,
+      description: "本步展示的字段 name 数组，引用 ui.fields 中字段的 name",
+    };
+  }
+}
+
 const doc = JSON.parse(readFileSync(schemaPath, "utf8")) as {
   $defs: Record<string, Def>;
   "x-nuwax": Def;
@@ -52,6 +64,14 @@ doc.$defs.InteractionUi = {
   ...zodDef(InteractionUiSchema, "InteractionUi"),
   description: "交互 UI 定义；DockPanel / McpAskQuestionCard 直接消费",
 };
+patchWizardStepFieldRefs(
+  doc.$defs.InteractionUi,
+  "#/$defs/InteractionUi/properties/fields",
+);
+patchWizardStepFieldRefs(
+  (doc.$defs.NuwaxAskQuestionInput.properties as Def).ui as Def,
+  "#/$defs/NuwaxAskQuestionInput/properties/ui/properties/fields",
+);
 // Presentation 枚举的真相源是 types.ts InteractionUi.presentation；该手写 $def 已无人引用且易漂移
 // （曾残留已废弃的 "table"），删除以保持单一真相源。
 delete doc.$defs.Presentation;

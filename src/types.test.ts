@@ -216,7 +216,7 @@ describe("InteractionUiSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("接受 steps 数组", () => {
+  it("接受 steps 数组（无 ui.fields 时不做交叉校验）", () => {
     const result = InteractionUiSchema.safeParse(
       validUi({
         steps: [
@@ -226,6 +226,31 @@ describe("InteractionUiSchema", () => {
       }),
     );
     expect(result.success).toBe(true);
+  });
+
+  it("接受 steps.fields 引用 ui.fields 中已声明的 name", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({
+        presentation: "wizard",
+        fields: [
+          { name: "field1", title: "F1", widget: "text" },
+          { name: "field2", title: "F2", widget: "text" },
+        ],
+        steps: [{ id: "step1", title: "Step 1", fields: ["field1", "field2"] }],
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("拒绝 steps.fields 引用 ui.fields 中未声明的 name", () => {
+    const result = InteractionUiSchema.safeParse(
+      validUi({
+        presentation: "wizard",
+        fields: [{ name: "field1", title: "F1", widget: "text" }],
+        steps: [{ id: "step1", title: "Step 1", fields: ["unknown"] }],
+      }),
+    );
+    expect(result.success).toBe(false);
   });
 
   it("拒绝 steps 中缺少必填字段", () => {

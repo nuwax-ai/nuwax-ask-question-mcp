@@ -22,7 +22,28 @@ const outPath = join(
 
 // 复刻 SDK 对 raw shape 的处理：objectFromShape(shape) === z.object(shape)，再转 JSON Schema。
 // 与 SDK 一致使用默认 $refStrategy——共享的 Zod 实例（如 FieldNameSchema）会以 $ref 复用。
-const inputSchema = zodToJsonSchema(z.object(askUserPayloadShape));
+const inputSchema = zodToJsonSchema(z.object(askUserPayloadShape)) as Record<string, unknown>;
+
+/** wizard steps[].fields → $ref ui.properties.fields */
+function patchWizardStepFieldRefs(schema: Record<string, unknown>): void {
+  const ui = (schema.properties as Record<string, unknown> | undefined)?.ui as
+    | Record<string, unknown>
+    | undefined;
+  const stepProps = (
+    (ui?.properties as Record<string, unknown> | undefined)?.steps as
+      | Record<string, unknown>
+      | undefined
+  )?.items as Record<string, unknown> | undefined;
+  const props = stepProps?.properties as Record<string, unknown> | undefined;
+  if (props?.fields) {
+    props.fields = {
+      $ref: "#/properties/ui/properties/fields",
+      description: "本步展示的字段 name 数组，引用 ui.fields 中字段的 name",
+    };
+  }
+}
+
+patchWizardStepFieldRefs(inputSchema);
 
 writeFileSync(outPath, `${JSON.stringify(inputSchema, null, 2)}\n`, "utf8");
 

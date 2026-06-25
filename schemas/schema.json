@@ -303,13 +303,7 @@
                 "description": "步骤说明"
               },
               "fields": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "引用 ui.fields 中某字段的 name"
-                },
-                "minItems": 1,
+                "$ref": "#/$defs/InteractionUi/properties/fields",
                 "description": "本步展示的字段 name 数组，引用 ui.fields 中字段的 name"
               }
             },
@@ -599,13 +593,7 @@
                     "description": "步骤说明"
                   },
                   "fields": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "引用 ui.fields 中某字段的 name"
-                    },
-                    "minItems": 1,
+                    "$ref": "#/$defs/NuwaxAskQuestionInput/properties/ui/properties/fields",
                     "description": "本步展示的字段 name 数组，引用 ui.fields 中字段的 name"
                   }
                 },

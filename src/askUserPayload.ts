@@ -4,7 +4,8 @@ import {
   INTERACTION_UI_SCHEMA_VERSION,
   MCP_ASK_TOOL_NAME,
   McpAskUserToolInputSchema,
-  InteractionUiSchema,
+  InteractionUiSchemaBase,
+  refineWizardStepFieldRefs,
   type McpAskUserToolInput,
 } from "./types.js";
 
@@ -23,15 +24,17 @@ import {
  * 后端/DockPanel 经 normalizeMcpAskUserToolInput / buildRawInput 盖戳 version，契约不变。
  */
 
-/** agent-facing ui：复用 InteractionUiSchema 结构与描述，仅 version 加 default + 「请勿输出」 */
-const agentInteractionUiSchema = InteractionUiSchema.extend({
+/** agent-facing ui：复用 InteractionUiSchemaBase 结构与描述，仅 version 加 default + 「请勿输出」 */
+const agentInteractionUiSchema = InteractionUiSchemaBase.extend({
   version: z
     .literal(INTERACTION_UI_SCHEMA_VERSION)
     .default(INTERACTION_UI_SCHEMA_VERSION)
     .describe(
       `【请勿输出本字段】UI 契约版本，由服务端自动盖戳为 ${INTERACTION_UI_SCHEMA_VERSION}。省略即可。`,
     ),
-}).passthrough();
+})
+  .passthrough()
+  .superRefine(refineWizardStepFieldRefs);
 
 /**
  * agent-facing 入参：复用 McpAskUserToolInputSchema 结构与描述（去 toolName），仅 version 字段加 default。
