@@ -97,7 +97,7 @@ npm start
 为了让 Agent 更主动地调用此工具收集用户信息，建议在 Agent 的系统提示词中加入以下内容：
 
 ```
-When you need user input, preferences, or decisions, always use the nuwax_ask_question tool rather than asking in plain text. This provides a better user experience with interactive forms. Never guess or assume missing information — call nuwax_ask_question instead.
+When execution is blocked because you need user input, preferences, or decisions, use nuwax_ask_question rather than guessing or asking in plain text.
 ```
 
 ## 工具

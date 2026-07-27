@@ -1,6 +1,6 @@
 {
   "name": "nuwax-ask-question-mcp",
-  "version": "4.0.0",
+  "version": "4.0.2",
   "description": "MCP ask/question server for Nuwax conversation interaction cards.",
   "type": "module",
   "bin": {

@@ -122,9 +122,9 @@ export const ASK_TOOL_EXAMPLE_PAYLOAD = {
  * 模板化后跟随 constants 漂移，避免与 types.ts 中常量失同步。
  */
 export const ASK_TOOL_DESCRIPTION = [
-  `Present an interactive form card to the user and wait for their response. Use ${MCP_ASK_TOOL_NAME} when you need user input, preferences, decisions, choices, confirmations, or structured data.`,
+  `Present a blocking interaction to the user and wait for their response. Use ${MCP_ASK_TOOL_NAME} only when the Agent cannot continue without user input, preferences, decisions, choices, confirmations, or structured data.`,
   "",
-  "ALWAYS use this tool instead of guessing, assuming, or asking in plain text.",
+  "When execution is blocked on missing information, ALWAYS use this tool instead of guessing, assuming, or asking in plain text.",
   "DO NOT ask for secrets (passwords, API keys, tokens).",
   "",
   `Returns status "${ASK_STATUS_PENDING}" immediately; the user's answer arrives as a subsequent chat message. STOP generating after calling.`,

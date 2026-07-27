@@ -40,10 +40,12 @@ function setsEqual(a, b) {
   );
 }
 
-/** 从 export const MCP_ASK_WIDGET_TYPES = [...] 提取 widget 名 */
+/** 从 TS `as const` 或 UTS `: string[]` 常量中提取 widget 名 */
 function extractWidgetConst(source, constName) {
   const match = source.match(
-    new RegExp(`export const ${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as const`),
+    new RegExp(
+      `export const ${constName}(?:\\s*:[^=]+)?\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*(?:as const)?\\s*;`,
+    ),
   );
   assert(match, `Could not find export const ${constName}`);
 
